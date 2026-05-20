@@ -59,23 +59,17 @@ def inyectar_evidencia_b64(ruta_local, url_web):
         
     return "", False
 
-# --- 1. CONFIGURACIÓN DE ENTORNO Y ESTILO ENTERPRISE ---
+# 🔒 CONFIGURACIÓN COMPATIBLE CON STREAMLIT CLOUD
 st.set_page_config(
     page_title="C5I WAR ROOM | CMPC",
     layout="wide",
-    initial_sidebar_state="expanded",
-    theme=st.Theme(
-        base="dark",
-        primary_color="#ff4b4b",
-        secondary_background_color="#090e16",
-        background_color="#05080f",
-        text_color="#e0e6ed"
-    )
+    initial_sidebar_state="expanded"
 )
 
 # 🎨 INYECTAR CSS TÁCTICO (OPTIMIZADO PARA STREAMLIT CLOUD)
 st.markdown("""
 <style>
+    html, body { background-color: #05080f !important; color: #e0e6ed !important; }
     .stApp { background-color: #05080f !important; color: #e0e6ed; }
     .stSidebar { background-color: #090e16 !important; border-right: 1px solid #1e293b !important; }
     .stMetric { background-color: #0d121d !important; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
@@ -97,6 +91,7 @@ st.markdown("""
     /* Override Streamlit default light theme elements */
     .st-emotion-cache-1kyxreq { background-color: #0d121d !important; }
     .st-emotion-cache-1v0mbdj { background-color: #05080f !important; }
+    .st-emotion-cache-1r6slb0 { background-color: #05080f !important; }
 </style>
 """, unsafe_allow_html=True)
 
