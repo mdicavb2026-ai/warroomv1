@@ -61,120 +61,42 @@ def inyectar_evidencia_b64(ruta_local, url_web):
 
 # --- 1. CONFIGURACIÓN DE ENTORNO Y ESTILO ENTERPRISE ---
 st.set_page_config(
-    page_title="C5I WAR ROOM | CMPC", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
+    page_title="C5I WAR ROOM | CMPC",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    theme=st.Theme(
+        base="dark",
+        primary_color="#ff4b4b",
+        secondary_background_color="#090e16",
+        background_color="#05080f",
+        text_color="#e0e6ed"
+    )
 )
 
+# 🎨 INYECTAR CSS TÁCTICO (OPTIMIZADO PARA STREAMLIT CLOUD)
 st.markdown("""
 <style>
-    .stApp { 
-        background-color: #05080f; 
-        color: #e0e6ed; 
-    }
-    .stMetric { 
-        background-color: #0d121d; 
-        padding: 15px; 
-        border-radius: 10px; 
-        border-left: 5px solid #ff4b4b; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
-    }
-    [data-testid="stSidebar"] { 
-        background-color: #090e16; 
-        border-right: 1px solid #1e293b; 
-    }
-    .card-alerta { 
-        background-color: #0d121d; 
-        padding: 18px; 
-        border-radius: 10px; 
-        border: 1px solid #1e293b; 
-        margin-bottom: 12px; 
-        transition: all 0.2s ease-in-out; 
-    }
-    .card-alerta:hover { 
-        border-color: #38bdf8; 
-        box-shadow: 0 0 10px rgba(56,189,248,0.2); 
-    }
-    .badge-org { 
-        background-color: #1e293b; 
-        color: #cbd5e1; 
-        padding: 3px 8px; 
-        border-radius: 4px; 
-        font-size: 0.75rem; 
-        font-weight: bold; 
-    }
-    .link-btn { 
-        display: inline-block; 
-        margin-top: 8px; 
-        font-size: 0.85rem; 
-        color: #38bdf8; 
-        text-decoration: none; 
-        font-weight: bold; 
-    }
-    .link-btn:hover { 
-        text-decoration: underline; 
-        color: #7dd3fc; 
-    }
-    .semaforo-container { 
-        display: flex; 
-        gap: 10px; 
-        margin-bottom: 15px; 
-        background-color: #0d121d; 
-        padding: 12px 20px; 
-        border-radius: 8px; 
-        border: 1px solid #1e293b; 
-        align-items: center; 
-    }
-    .semaforo-luz { 
-        width: 14px; 
-        height: 14px; 
-        border-radius: 50%; 
-        display: inline-block; 
-        box-shadow: 0 0 8px currentColor; 
-    }
-    .semaforo-label { 
-        font-size: 0.85rem; 
-        font-weight: bold; 
-        color: #cbd5e1; 
-        margin-right: 15px; 
-    }
-    .metric-expl { 
-        font-size: 0.7rem; 
-        color: #64748b; 
-        margin-top: -10px; 
-        margin-bottom: 10px; 
-        line-height: 1.1; 
-    }
-    .media-container { 
-        max-height: 280px; 
-        overflow: hidden; 
-        border-radius: 6px; 
-        margin-top: 10px; 
-        border: 1px solid #334155; 
-        background-color: #000; 
-        text-align: center; 
-    }
-    .media-img { 
-        width: 100%; 
-        height: auto; 
-        object-fit: cover; 
-        max-height: 280px; 
-    }
-    .section-header { 
-        border-bottom: 2px solid #1e293b; 
-        padding-bottom: 8px; 
-        margin-top: 25px; 
-        margin-bottom: 15px; 
-        color: #38bdf8; 
-    }
-    h1, h2, h3, h4 { 
-        color: #ffffff; 
-        letter-spacing: -0.5px; 
-    }
-    div.block-container { 
-        padding-top: 1.5rem; 
-        padding-bottom: 1.5rem; 
-    }
+    .stApp { background-color: #05080f !important; color: #e0e6ed; }
+    .stSidebar { background-color: #090e16 !important; border-right: 1px solid #1e293b !important; }
+    .stMetric { background-color: #0d121d !important; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    [data-testid="stSidebar"] { background-color: #090e16 !important; }
+    .card-alerta { background-color: #0d121d !important; padding: 18px; border-radius: 10px; border: 1px solid #1e293b !important; margin-bottom: 12px; transition: all 0.2s ease-in-out; }
+    .card-alerta:hover { border-color: #38bdf8 !important; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
+    .badge-org { background-color: #1e293b !important; color: #cbd5e1 !important; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .link-btn { display: inline-block; margin-top: 8px; font-size: 0.85rem; color: #38bdf8 !important; text-decoration: none; font-weight: bold; }
+    .link-btn:hover { text-decoration: underline; color: #7dd3fc !important; }
+    .semaforo-container { display: flex; gap: 10px; margin-bottom: 15px; background-color: #0d121d !important; padding: 12px 20px; border-radius: 8px; border: 1px solid #1e293b !important; align-items: center; }
+    .semaforo-luz { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
+    .semaforo-label { font-size: 0.85rem; font-weight: bold; color: #cbd5e1 !important; margin-right: 15px; }
+    .metric-expl { font-size: 0.7rem; color: #64748b !important; margin-top: -10px; margin-bottom: 10px; line-height: 1.1; }
+    .media-container { max-height: 280px; overflow: hidden; border-radius: 6px; margin-top: 10px; border: 1px solid #334155 !important; background-color: #000 !important; text-align: center; }
+    .media-img { width: 100%; height: auto; object-fit: cover; max-height: 280px; }
+    .section-header { border-bottom: 2px solid #1e293b !important; padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px; color: #38bdf8 !important; }
+    h1, h2, h3, h4 { color: #ffffff !important; letter-spacing: -0.5px; }
+    div.block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
+    /* Override Streamlit default light theme elements */
+    .st-emotion-cache-1kyxreq { background-color: #0d121d !important; }
+    .st-emotion-cache-1v0mbdj { background-color: #05080f !important; }
 </style>
 """, unsafe_allow_html=True)
 
