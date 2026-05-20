@@ -95,11 +95,24 @@ h1, h2, h3 { color: var(--text-main) !important; letter-spacing: 0.3px !importan
 .js-plotly-plot .modebar:hover { opacity: 1 !important; }
 </style>
 """, unsafe_allow_html=True)
+
 # 🔄 ACTUALIZACIÓN AUTOMÁTICA 24/7 (Requiere: pip install streamlit-autorefresh)
 from streamlit_autorefresh import st_autorefresh
 st_autorefresh(interval=300000, key="refresh_warroom") # Cada 5 min
 
-# 🎛️ SEMÁFORO DINÁMICO
+# 📊 CÁLCULO DE MÉTRICAS PRINCIPALES (Orden lógico garantizado)
+tot_alertas = len(df_filtrado) if not df_filtrado.empty else 0
+
+if tot_alertas > 0:
+    criterios_cmpc = "cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
+    mask_cmpc_metric = (df_filtrado['titular'].str.contains(criterios_cmpc, case=False, na=False) | 
+                        df_filtrado.get('analisis_ia', pd.Series()).str.contains(criterios_cmpc, case=False, na=False))
+    df_solo_cmpc = df_filtrado[mask_cmpc_metric]
+    tot_criticos = len(df_solo_cmpc[df_solo_cmpc['nivel_alerta'] == 'CRÍTICO']) if 'nivel_alerta' in df_solo_cmpc.columns else len(df_solo_cmpc)
+else:
+    tot_criticos = 0
+
+# 🎛️ SEMÁFORO DINÁMICO (Ahora tot_criticos ya existe y es seguro usarlo)
 estado_alerta = "ESTABLE" if tot_criticos == 0 else "ALERTA TEMPRANA" if tot_criticos < 5 else "RIESGO CRÍTICO"
 clase_semaforo = "metric-ok" if estado_alerta == "ESTABLE" else "metric-warn" if estado_alerta == "ALERTA TEMPRANA" else "metric-crit"
 delta_clase = "delta-ok" if estado_alerta == "ESTABLE" else "delta-warn" if estado_alerta == "ALERTA TEMPRANA" else "delta-crit"
