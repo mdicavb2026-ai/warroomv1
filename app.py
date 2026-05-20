@@ -66,32 +66,152 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🎨 INYECTAR TEMA OSCURO TÁCTICO (100% VÍA CSS, SIN DEPENDER DE st.Theme)
 st.markdown("""
 <style>
-    html, body, [data-testid="stAppViewContainer"] { background-color: #05080f !important; }
-    .stApp { background-color: #05080f !important; color: #e0e6ed; }
-    .stSidebar { background-color: #090e16 !important; border-right: 1px solid #1e293b !important; }
-    [data-testid="stSidebar"] { background-color: #090e16 !important; }
-    .stMetric { background-color: #0d121d !important; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    .card-alerta { background-color: #0d121d !important; padding: 18px; border-radius: 10px; border: 1px solid #1e293b !important; margin-bottom: 12px; transition: all 0.2s ease-in-out; }
-    .card-alerta:hover { border-color: #38bdf8 !important; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
-    .badge-org { background-color: #1e293b !important; color: #cbd5e1 !important; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-    .link-btn { display: inline-block; margin-top: 8px; font-size: 0.85rem; color: #38bdf8 !important; text-decoration: none; font-weight: bold; }
-    .link-btn:hover { text-decoration: underline; color: #7dd3fc !important; }
-    .semaforo-container { display: flex; gap: 10px; margin-bottom: 15px; background-color: #0d121d !important; padding: 12px 20px; border-radius: 8px; border: 1px solid #1e293b !important; align-items: center; }
-    .semaforo-luz { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
-    .semaforo-label { font-size: 0.85rem; font-weight: bold; color: #cbd5e1 !important; margin-right: 15px; }
-    .metric-expl { font-size: 0.7rem; color: #64748b !important; margin-top: -10px; margin-bottom: 10px; line-height: 1.1; }
-    .media-container { max-height: 280px; overflow: hidden; border-radius: 6px; margin-top: 10px; border: 1px solid #334155 !important; background-color: #000 !important; text-align: center; }
-    .media-img { width: 100%; height: auto; object-fit: cover; max-height: 280px; }
-    .section-header { border-bottom: 2px solid #1e293b !important; padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px; color: #38bdf8 !important; }
-    h1, h2, h3, h4 { color: #ffffff !important; letter-spacing: -0.5px; }
-    div.block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
-    /* Override elementos nativos claros de Streamlit */
-    .st-emotion-cache-1kyxreq, .st-emotion-cache-1v0mbdj, .st-emotion-cache-1r6slb0, .st-emotion-cache-1lcbmhc { background-color: #05080f !important; }
-    [data-testid="stMetricLabel"] { color: #cbd5e1 !important; }
+    /* 🌑 FORZAR FONDO OSCURO GLOBAL */
+    html, body, [data-testid="stAppViewContainer"], .stApp, .block-container {
+        background-color: #05080f !important;
+        color: #e0e6ed !important;
+    }
+    
+    /* 🔝 BARRA SUPERIOR (Header/Nav) */
+    header, [data-testid="stHeader"], #MainMenu, .st-emotion-cache-1x85e9v {
+        background-color: #05080f !important;
+        border-bottom: 1px solid #1e293b !important;
+        box-shadow: none !important;
+    }
+    [data-testid="stHeader"] span, [data-testid="stHeader"] a {
+        color: #cbd5e1 !important;
+    }
+
+    /* 📐 SIDEBAR (Fondo + Texto + Bordes) */
+    [data-testid="stSidebar"], [data-testid="stSidebarUserContent"], section.sidebar {
+        background-color: #090e16 !important;
+        color: #e0e6ed !important;
+        border-right: 1px solid #1e293b !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #cbd5e1 !important;
+    }
+    [data-testid="stSidebar"] input, [data-testid="stSidebar"] select, [data-testid="stSidebar"] textarea {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border-color: #334155 !important;
+    }
+
+    /* 🔘 BOTONES (Ver Detalle CMPC y demás) */
+    .stButton > button {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border: 1px solid #38bdf8 !important;
+        border-radius: 6px !important;
+        padding: 8px 16px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
+    .stButton > button:hover {
+        background-color: #0f172a !important;
+        border-color: #7dd3fc !important;
+        box-shadow: 0 0 10px rgba(56,189,248,0.3) !important;
+        transform: translateY(-1px);
+    }
+
+    /* 📊 MÉTRICAS & CARDS (Tus estilos originales + blindaje) */
+    .stMetric {
+        background-color: #0d121d !important;
+        padding: 15px !important;
+        border-radius: 10px !important;
+        border-left: 5px solid #ff4b4b !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
+    }
     [data-testid="stMetricValue"] { color: #ffffff !important; }
+    [data-testid="stMetricLabel"] { color: #94a3b8 !important; }
+    [data-testid="stMetricDelta"] { color: #f87171 !important; }
+
+    .card-alerta {
+        background-color: #0d121d !important;
+        padding: 18px !important;
+        border-radius: 10px !important;
+        border: 1px solid #1e293b !important;
+        margin-bottom: 12px !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .card-alerta:hover {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 10px rgba(56,189,248,0.2) !important;
+    }
+
+    /* 🎨 ELEMENTOS GENERALES */
+    .badge-org {
+        background-color: #1e293b !important;
+        color: #cbd5e1 !important;
+        padding: 3px 8px !important;
+        border-radius: 4px !important;
+        font-size: 0.75rem !important;
+        font-weight: bold !important;
+    }
+    .link-btn {
+        display: inline-block !important;
+        margin-top: 8px !important;
+        font-size: 0.85rem !important;
+        color: #38bdf8 !important;
+        text-decoration: none !important;
+        font-weight: bold !important;
+    }
+    .link-btn:hover { text-decoration: underline !important; color: #7dd3fc !important; }
+    
+    .semaforo-container {
+        display: flex !important;
+        gap: 10px !important;
+        margin-bottom: 15px !important;
+        background-color: #0d121d !important;
+        padding: 12px 20px !important;
+        border-radius: 8px !important;
+        border: 1px solid #1e293b !important;
+        align-items: center !important;
+    }
+    .semaforo-luz {
+        width: 14px !important; height: 14px !important;
+        border-radius: 50% !important;
+        display: inline-block !important;
+        box-shadow: 0 0 8px currentColor !important;
+    }
+    .semaforo-label {
+        font-size: 0.85rem !important;
+        font-weight: bold !important;
+        color: #cbd5e1 !important;
+        margin-right: 15px !important;
+    }
+    .metric-expl {
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+        margin-top: -10px !important;
+        margin-bottom: 10px !important;
+        line-height: 1.1 !important;
+    }
+    .media-container {
+        max-height: 280px !important;
+        overflow: hidden !important;
+        border-radius: 6px !important;
+        margin-top: 10px !important;
+        border: 1px solid #334155 !important;
+        background-color: #000 !important;
+        text-align: center !important;
+    }
+    .media-img { width: 100% !important; height: auto !important; object-fit: cover !important; max-height: 280px !important; }
+    .section-header {
+        border-bottom: 2px solid #1e293b !important;
+        padding-bottom: 8px !important;
+        margin-top: 25px !important;
+        margin-bottom: 15px !important;
+        color: #38bdf8 !important;
+    }
+    h1, h2, h3, h4 { color: #ffffff !important; letter-spacing: -0.5px !important; }
+    div.block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
+
+    /* 📉 GRÁFICOS PLOTLY (Fondo oscuro forzado) */
+    .js-plotly-plot .plotly .modebar { color: #cbd5e1 !important; }
+    .js-plotly-plot .plotly .modebar-btn path { fill: #94a3b8 !important; }
 </style>
 """, unsafe_allow_html=True)
 
