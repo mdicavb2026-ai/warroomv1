@@ -31,6 +31,10 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
+# 🔄 ACTUALIZACIÓN AUTOMÁTICA 24/7 (Requiere: pip install streamlit-autorefresh)
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=300000, key="refresh_warroom") # Cada 5 min
+
 def inyectar_evidencia_b64(ruta_local, url_web):
     """
     Inyecta evidencia multimedia en la interfaz, priorizando el almacenamiento local.
@@ -96,31 +100,30 @@ h1, h2, h3 { color: var(--text-main) !important; letter-spacing: 0.3px !importan
 </style>
 """, unsafe_allow_html=True)
 
-# 🔄 ACTUALIZACIÓN AUTOMÁTICA 24/7 (Requiere: pip install streamlit-autorefresh)
-from streamlit_autorefresh import st_autorefresh
-st_autorefresh(interval=300000, key="refresh_warroom") # Cada 5 min
-
-# 📊 CÁLCULO DE MÉTRICAS PRINCIPALES (Orden lógico garantizado)
-tot_alertas = len(df_filtrado) if not df_filtrado.empty else 0
-
-if tot_alertas > 0:
-    criterios_cmpc = "cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
-    mask_cmpc_metric = (df_filtrado['titular'].str.contains(criterios_cmpc, case=False, na=False) | 
-                        df_filtrado.get('analisis_ia', pd.Series()).str.contains(criterios_cmpc, case=False, na=False))
-    df_solo_cmpc = df_filtrado[mask_cmpc_metric]
-    tot_criticos = len(df_solo_cmpc[df_solo_cmpc['nivel_alerta'] == 'CRÍTICO']) if 'nivel_alerta' in df_solo_cmpc.columns else len(df_solo_cmpc)
-else:
+# 📊 CÁLCULO SEGURO DE MÉTRICAS (Protección contra DF vacío/columnas faltantes)
+if 'df_filtrado' not in locals() or df_filtrado.empty:
+    tot_alertas = 0
     tot_criticos = 0
+else:
+    tot_alertas = len(df_filtrado)
+    criterios_cmpc = r"cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
+    
+    # Búsqueda segura en titular y análisis IA (evita KeyError si la columna no existe)
+    mask_tit = df_filtrado['titular'].astype(str).str.contains(criterios_cmpc, case=False, na=False, regex=True)
+    mask_ia = df_filtrado['analisis_ia'].astype(str).str.contains(criterios_cmpc, case=False, na=False, regex=True) if 'analisis_ia' in df_filtrado.columns else pd.Series(False, index=df_filtrado.index)
+    
+    df_solo_cmpc = df_filtrado[mask_tit | mask_ia]
+    tot_criticos = len(df_solo_cmpc[df_solo_cmpc['nivel_alerta'] == 'CRÍTICO']) if 'nivel_alerta' in df_solo_cmpc.columns else 0
 
-# 🎛️ SEMÁFORO DINÁMICO (Ahora tot_criticos ya existe y es seguro usarlo)
+# 🎛️ SEMÁFORO DINÁMICO (Variables pre-calculadas para evitar f-strings rotos en CSS)
 estado_alerta = "ESTABLE" if tot_criticos == 0 else "ALERTA TEMPRANA" if tot_criticos < 5 else "RIESGO CRÍTICO"
-clase_semaforo = "metric-ok" if estado_alerta == "ESTABLE" else "metric-warn" if estado_alerta == "ALERTA TEMPRANA" else "metric-crit"
-delta_clase = "delta-ok" if estado_alerta == "ESTABLE" else "delta-warn" if estado_alerta == "ALERTA TEMPRANA" else "delta-crit"
+color_semaforo = "ok" if estado_alerta == "ESTABLE" else "warn" if estado_alerta == "ALERTA TEMPRANA" else "crit"
 
+# 🎨 INYECCIÓN HTML/CSS TÁCTICA
 st.markdown(f'''
-<div style="display:flex; align-items:center; gap:15px; background:var(--bg-panel); padding:12px 20px; border-radius:8px; border-left:4px solid var(--color-{'ok' if estado_alerta=='ESTABLE' else 'warn' if estado_alerta=='ALERTA TEMPRANA' else 'crit'}); margin-bottom:1rem;">
+<div style="display:flex; align-items:center; gap:15px; background:var(--bg-panel); padding:12px 20px; border-radius:8px; border-left:4px solid var(--color-{color_semaforo}); margin-bottom:1rem;">
   <span style="font-size:0.9rem; color:var(--text-muted); text-transform:uppercase;">ESTADO PERÍMETRO:</span>
-  <span class="{delta_clase}" style="font-weight:700;">{estado_alerta}</span>
+  <span style="font-weight:700; color:var(--color-{color_semaforo});">{estado_alerta}</span>
   <span style="margin-left:auto; font-size:0.85rem; color:var(--text-muted);">{tot_criticos} eventos críticos directos</span>
 </div>
 ''', unsafe_allow_html=True)
