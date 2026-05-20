@@ -662,6 +662,7 @@ if modo_analisis == "📍 SITREP Táctico":
             st.write("Volumen insuficiente para trazar distribuciones estadísticas.")
 
 # ==============================================================================
+# ==============================================================================
 # COMPUERTA 2: ESTADÍSTICAS MZS Y NUBE DE BIGRAMAS
 # ==============================================================================
 elif modo_analisis == "📊 Estadísticas MZS":
@@ -705,10 +706,9 @@ elif modo_analisis == "📊 Estadísticas MZS":
 
         st.divider()
         
-                st.markdown("#### 📊 Evolución Mensual por Región Táctica")
+        st.markdown("#### 📊 Evolución Mensual por Región Táctica")
         df_stat = df_filtrado.copy()
         if not df_stat.empty:
-            # Agrupar y ordenar cronológicamente
             df_grp = df_stat.groupby(['region', 'mes_anio']).size().reset_index(name='Eventos')
             df_grp['mes_anio'] = pd.to_datetime(df_grp['mes_anio']).dt.strftime('%Y-%m')
             
@@ -758,7 +758,7 @@ elif modo_analisis == "📊 Estadísticas MZS":
                                 'Sabotaje / Otros': '#64748b'
                             })
             fig_ev.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white", xaxis_title="Mes", yaxis_title="Sucesos")
-            st.plotly_chart(fig_ev, use_container_width=True)
+            st.plotly_chart(fig_ev, width="stretch")
             
         with col_ch2:
             st.markdown("#### ☁️ Nube de Conceptos Tácticos (Solo N-gramas)")
