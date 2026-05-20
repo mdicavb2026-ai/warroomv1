@@ -68,152 +68,83 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 🌑 FORZAR FONDO OSCURO GLOBAL */
-    html, body, [data-testid="stAppViewContainer"], .stApp, .block-container {
-        background-color: #05080f !important;
-        color: #e0e6ed !important;
-    }
-    
-    /* 🔝 BARRA SUPERIOR (Header/Nav) */
-    header, [data-testid="stHeader"], #MainMenu, .st-emotion-cache-1x85e9v {
-        background-color: #05080f !important;
-        border-bottom: 1px solid #1e293b !important;
-        box-shadow: none !important;
-    }
-    [data-testid="stHeader"] span, [data-testid="stHeader"] a {
-        color: #cbd5e1 !important;
-    }
-
-    /* 📐 SIDEBAR (Fondo + Texto + Bordes) */
-    [data-testid="stSidebar"], [data-testid="stSidebarUserContent"], section.sidebar {
-        background-color: #090e16 !important;
-        color: #e0e6ed !important;
-        border-right: 1px solid #1e293b !important;
-    }
-    [data-testid="stSidebar"] * {
-        color: #cbd5e1 !important;
-    }
-    [data-testid="stSidebar"] input, [data-testid="stSidebar"] select, [data-testid="stSidebar"] textarea {
-        background-color: #1e293b !important;
-        color: #f8fafc !important;
-        border-color: #334155 !important;
-    }
-
-    /* 🔘 BOTONES (Ver Detalle CMPC y demás) */
-    .stButton > button {
-        background-color: #1e293b !important;
-        color: #f8fafc !important;
-        border: 1px solid #38bdf8 !important;
-        border-radius: 6px !important;
-        padding: 8px 16px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
-    }
-    .stButton > button:hover {
-        background-color: #0f172a !important;
-        border-color: #7dd3fc !important;
-        box-shadow: 0 0 10px rgba(56,189,248,0.3) !important;
-        transform: translateY(-1px);
-    }
-
-    /* 📊 MÉTRICAS & CARDS (Tus estilos originales + blindaje) */
-    .stMetric {
-        background-color: #0d121d !important;
-        padding: 15px !important;
-        border-radius: 10px !important;
-        border-left: 5px solid #ff4b4b !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3) !important;
-    }
-    [data-testid="stMetricValue"] { color: #ffffff !important; }
-    [data-testid="stMetricLabel"] { color: #94a3b8 !important; }
-    [data-testid="stMetricDelta"] { color: #f87171 !important; }
-
-    .card-alerta {
-        background-color: #0d121d !important;
-        padding: 18px !important;
-        border-radius: 10px !important;
-        border: 1px solid #1e293b !important;
-        margin-bottom: 12px !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-    .card-alerta:hover {
-        border-color: #38bdf8 !important;
-        box-shadow: 0 0 10px rgba(56,189,248,0.2) !important;
-    }
-
-    /* 🎨 ELEMENTOS GENERALES */
-    .badge-org {
-        background-color: #1e293b !important;
-        color: #cbd5e1 !important;
-        padding: 3px 8px !important;
-        border-radius: 4px !important;
-        font-size: 0.75rem !important;
-        font-weight: bold !important;
-    }
-    .link-btn {
-        display: inline-block !important;
-        margin-top: 8px !important;
-        font-size: 0.85rem !important;
-        color: #38bdf8 !important;
-        text-decoration: none !important;
-        font-weight: bold !important;
-    }
-    .link-btn:hover { text-decoration: underline !important; color: #7dd3fc !important; }
-    
-    .semaforo-container {
-        display: flex !important;
-        gap: 10px !important;
-        margin-bottom: 15px !important;
-        background-color: #0d121d !important;
-        padding: 12px 20px !important;
-        border-radius: 8px !important;
-        border: 1px solid #1e293b !important;
-        align-items: center !important;
-    }
-    .semaforo-luz {
-        width: 14px !important; height: 14px !important;
-        border-radius: 50% !important;
-        display: inline-block !important;
-        box-shadow: 0 0 8px currentColor !important;
-    }
-    .semaforo-label {
-        font-size: 0.85rem !important;
-        font-weight: bold !important;
-        color: #cbd5e1 !important;
-        margin-right: 15px !important;
-    }
-    .metric-expl {
-        font-size: 0.7rem !important;
-        color: #64748b !important;
-        margin-top: -10px !important;
-        margin-bottom: 10px !important;
-        line-height: 1.1 !important;
-    }
-    .media-container {
-        max-height: 280px !important;
-        overflow: hidden !important;
-        border-radius: 6px !important;
-        margin-top: 10px !important;
-        border: 1px solid #334155 !important;
-        background-color: #000 !important;
-        text-align: center !important;
-    }
-    .media-img { width: 100% !important; height: auto !important; object-fit: cover !important; max-height: 280px !important; }
-    .section-header {
-        border-bottom: 2px solid #1e293b !important;
-        padding-bottom: 8px !important;
-        margin-top: 25px !important;
-        margin-bottom: 15px !important;
-        color: #38bdf8 !important;
-    }
-    h1, h2, h3, h4 { color: #ffffff !important; letter-spacing: -0.5px !important; }
-    div.block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
-
-    /* 📉 GRÁFICOS PLOTLY (Fondo oscuro forzado) */
-    .js-plotly-plot .plotly .modebar { color: #cbd5e1 !important; }
-    .js-plotly-plot .plotly .modebar-btn path { fill: #94a3b8 !important; }
+:root {
+  --bg-main: #0a0f18; --bg-panel: #111827; --bg-control: #1f2937;
+  --border: #374151; --text-main: #e5e7eb; --text-muted: #9ca3af;
+  --color-ok: #10b981; --color-warn: #f59e0b; --color-crit: #ef4444; --color-info: #3b82f6;
+}
+html, body, [data-testid="stAppViewContainer"], .stApp { background-color: var(--bg-main) !important; color: var(--text-main) !important; font-family: 'Inter', system-ui, sans-serif !important; }
+[data-testid="stSidebar"] { background-color: #0d1321 !important; border-right: 1px solid var(--border) !important; }
+[data-testid="stDateInput"] input, [data-testid="stSelectbox"] select, [data-testid="stSlider"] input, [data-testid="stButton"] button {
+  background-color: var(--bg-control) !important; color: var(--text-main) !important; border: 1px solid var(--border) !important; border-radius: 6px !important;
+}
+.stMetric { background-color: var(--bg-panel) !important; padding: 16px !important; border-radius: 8px !important; border-left: 4px solid var(--text-muted) !important; }
+.metric-ok { border-left-color: var(--color-ok) !important; }
+.metric-warn { border-left-color: var(--color-warn) !important; }
+.metric-crit { border-left-color: var(--color-crit) !important; }
+.delta-ok { color: var(--color-ok) !important; font-weight: 600 !important; }
+.delta-warn { color: var(--color-warn) !important; font-weight: 600 !important; }
+.delta-crit { color: var(--color-crit) !important; font-weight: 600 !important; }
+.stDataFrame, div[role="grid"] { display: none !important; } /* Elimina tablas visuales */
+h1, h2, h3 { color: var(--text-main) !important; letter-spacing: 0.3px !important; font-weight: 600 !important; }
+/* Optimización para proyección grande */
+.block-container { padding: 2rem 2.5rem !important; }
+[data-testid="stMetricValue"] { font-size: 2.2rem !important; }
+[data-testid="stMetricLabel"] { font-size: 0.9rem !important; text-transform: uppercase; letter-spacing: 0.5px; }
+.js-plotly-plot .modebar { opacity: 0.3 !important; }
+.js-plotly-plot .modebar:hover { opacity: 1 !important; }
 </style>
 """, unsafe_allow_html=True)
+# 🔄 ACTUALIZACIÓN AUTOMÁTICA 24/7 (Requiere: pip install streamlit-autorefresh)
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=300000, key="refresh_warroom") # Cada 5 min
+
+# 🎛️ SEMÁFORO DINÁMICO
+estado_alerta = "ESTABLE" if tot_criticos == 0 else "ALERTA TEMPRANA" if tot_criticos < 5 else "RIESGO CRÍTICO"
+clase_semaforo = "metric-ok" if estado_alerta == "ESTABLE" else "metric-warn" if estado_alerta == "ALERTA TEMPRANA" else "metric-crit"
+delta_clase = "delta-ok" if estado_alerta == "ESTABLE" else "delta-warn" if estado_alerta == "ALERTA TEMPRANA" else "delta-crit"
+
+st.markdown(f'''
+<div style="display:flex; align-items:center; gap:15px; background:var(--bg-panel); padding:12px 20px; border-radius:8px; border-left:4px solid var(--color-{'ok' if estado_alerta=='ESTABLE' else 'warn' if estado_alerta=='ALERTA TEMPRANA' else 'crit'}); margin-bottom:1rem;">
+  <span style="font-size:0.9rem; color:var(--text-muted); text-transform:uppercase;">ESTADO PERÍMETRO:</span>
+  <span class="{delta_clase}" style="font-weight:700;">{estado_alerta}</span>
+  <span style="margin-left:auto; font-size:0.85rem; color:var(--text-muted);">{tot_criticos} eventos críticos directos</span>
+</div>
+''', unsafe_allow_html=True)
+
+# 📰 CARRUSEL TÁCTICO (Auto-rotativo)
+if not df_filtrado.empty:
+    col_c1, col_c2 = st.columns([3, 1])
+    with col_c1:
+        st.subheader("📡 FLUJO OPERATIVO EN VIVO")
+        st.markdown("""
+        <style>
+        .news-ticker { overflow:hidden; white-space:nowrap; animation: ticker 30s linear infinite; }
+        @keyframes ticker { 0% {transform:translateX(100%);} 100% {transform:translateX(-100%);} }
+        .ticker-item { display:inline-block; padding:10px 20px; background:var(--bg-panel); margin-right:15px; border-radius:6px; border:1px solid var(--border); }
+        </style>
+        <div class="news-ticker">
+          """ + "".join([f'<span class="ticker-item">📅 {r.get("fecha_limpia","")} | 📍 {r.get("ubicacion","")} | {r.get("titular","")[:60]}...</span>' for _, r in df_filtrado.head(8).iterrows()]) + """
+        </div>""", unsafe_allow_html=True)
+    with col_c2:
+        st.metric("TRAZAS ACTIVAS", tot_alertas, delta="TOTAL", delta_color="neutral")
+        st.metric("AFECTACIÓN CMPC", tot_criticos, delta=f"{estado_alerta}", delta_color="inverse" if tot_criticos>0 else "normal")
+
+# 🗺️ MAPA OPERATIVO (CMPC = ROJO, Terceros = CYAN/GRAY)
+# (Mantén tu bloque Plotly, pero reemplaza la creación de traces con esto)
+fig_map = go.Figure()
+if not df_geo.empty:
+    df_cmpc = df_geo[df_geo['titular'].str.lower().str.contains('cmpc|mininco|forestal', na=False)]
+    df_terc = df_geo[~df_geo.index.isin(df_cmpc.index)]
+    
+    if not df_cmpc.empty:
+        fig_map.add_trace(go.Scattermapbox(lat=df_cmpc['latitud_num'], lon=df_cmpc['longitud_num'], mode='markers',
+            marker=dict(size=14, color='#ef4444', line=dict(width=2, color='#ffffff'), opacity=0.9),
+            text=df_cmpc['titular'], hoverinfo='text', name='⚠️ Impacto CMPC'))
+    if not df_terc.empty:
+        fig_map.add_trace(go.Scattermapbox(lat=df_terc['latitud_num'], lon=df_terc['longitud_num'], mode='markers',
+            marker=dict(size=8, color='#3b82f6', opacity=0.6),
+            text=df_terc['titular'], hoverinfo='text', name='ℹ️ Terceros/Contexto'))
 
 # --- 2. GESTIÓN DE ESTADO INTERACTIVO ---
 if 'filtro_provincia_activo' not in st.session_state:
@@ -774,10 +705,38 @@ elif modo_analisis == "📊 Estadísticas MZS":
 
         st.divider()
         
-        st.markdown("#### Tabla de Estadísticas Generales Macrozona Sur (Frecuencia Mensual)")
+                st.markdown("#### 📊 Evolución Mensual por Región Táctica")
         df_stat = df_filtrado.copy()
-        tabla_cruzada = pd.crosstab(df_stat['region'], df_stat['mes_anio'], margins=True, margins_name="Total General")
-        st.dataframe(tabla_cruzada, use_container_width=True)
+        if not df_stat.empty:
+            # Agrupar y ordenar cronológicamente
+            df_grp = df_stat.groupby(['region', 'mes_anio']).size().reset_index(name='Eventos')
+            df_grp['mes_anio'] = pd.to_datetime(df_grp['mes_anio']).dt.strftime('%Y-%m')
+            
+            fig_reg = px.bar(
+                df_grp,
+                x='region',
+                y='Eventos',
+                color='mes_anio',
+                barmode='group',
+                color_discrete_sequence=px.colors.qualitative.Safe,
+                title=None
+            )
+            fig_reg.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font_color="#e5e7eb",
+                xaxis_title="",
+                yaxis_title="Eventos",
+                showlegend=True,
+                legend_title_text="Período",
+                margin=dict(l=20, r=20, t=30, b=20),
+                xaxis_tickangle=-45,
+                bargap=0.15,
+                bargroupgap=0.05
+            )
+            st.plotly_chart(fig_reg, width="stretch")
+        else:
+            st.info("Sin datos suficientes para graficar evolución regional.")
         
         st.divider()
         col_ch1, col_ch2 = st.columns(2)
