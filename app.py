@@ -1024,9 +1024,10 @@ elif modo_analisis == "🔮 Prospectiva IA":
 # ==============================================================================
 elif modo_analisis == "📄 Reportes Radar":
     st.subheader("📄 Módulo de Exportación Oficial: Radar de Crisis (.docx)")
-    if st.button("🚀 Compilar Informe Oficial", use_container_width=True, type="primary"):
-        with st.spinner("Trazando gráficos en memoria e incrustando recursos visuales..."):
+    if st.button("🚀 Compilar Informe Oficial", width="stretch", type="primary"):
+        with st.spinner("Generando análisis prospectivo vía IA y trazando gráficos..."):
             try:
+                # 🔹 1. GRÁFICOS (INTACTOS)
                 fig_barras, ax_bar = plt.subplots(figsize=(7, 3.5))
                 fig_barras.patch.set_facecolor('#ffffff')
                 ax_bar.set_facecolor('#ffffff')
@@ -1061,6 +1062,53 @@ elif modo_analisis == "📄 Reportes Radar":
                 img_stream_pie.seek(0)
                 plt.close(fig_pie)
 
+                # 🔹 2. EXTRACCIÓN DE MÉTRICAS PARA IA
+                total_ev = len(df_filtrado)
+                crit_ev = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO']) if total_ev > 0 and 'nivel_alerta' in df_filtrado.columns else 0
+                ig_ev = len(df_filtrado[df_filtrado['es_rrss'] == True]) if total_ev > 0 and 'es_rrss' in df_filtrado.columns else 0
+                prensa_ev = total_ev - ig_ev
+
+                comunas_validas = []
+                if total_ev > 0 and 'ubicacion' in df_filtrado.columns:
+                    excluir_locs = ['no especificado', 'desconocido', 'sin dato', 'mzs', '', 'macrozona sur'] + COMUNAS_PURGADAS
+                    comunas_serie = df_filtrado['ubicacion'].dropna().astype(str)
+                    comunas_validas = comunas_serie[~comunas_serie.str.lower().str.strip().isin(excluir_locs)]
+                comunas_afectadas = comunas_validas.nunique() if len(comunas_validas) > 0 else 0
+                principales_comunas = ", ".join(comunas_validas.value_counts().head(3).index.tolist()) if len(comunas_validas) > 0 else "sectores focales del corredor"
+                
+                top_tipos = df_tipos_rep.head(3).index.tolist() if not df_tipos_rep.empty else ["No especificado"]
+                top_actores = df_filtrado['actor'].value_counts().head(3).index.tolist() if not df_filtrado.empty else ["Sin atribución"]
+
+                # 🔹 3. GENERACIÓN DINÁMICA VÍA IA (GROQ)
+                resumen_datos = f"""
+                Ventana: {f_inicio.strftime('%d/%m/%Y')} al {f_fin.strftime('%d/%m/%Y')}
+                Total eventos: {total_ev} | Críticos directos: {crit_ev} | RRSS: {ig_ev} | Prensa: {prensa_ev}
+                Comunas principales: {principales_comunas}
+                Tipologías dominantes: {top_tipos}
+                Actores más frecuentes: {top_actores}
+                """
+                prompt_ia_reporte = f"""
+                Eres Analista C5I Senior de protección patrimonial forestal. Genera un informe ejecutivo basándote ÚNICAMENTE en estos datos. No uses markdown ni caracteres especiales.
+                DATOS: {resumen_datos}
+                FORMATO EXACTO:
+                [ANALISIS] <2 párrafos con tendencia, patrones de fricción, riesgo logístico y proyección a 30 días>
+                [DIRECTRICES]
+                1. <Directiva concreta 1>
+                2. <Directiva concreta 2>
+                3. <Directiva concreta 3>
+                4. <Directiva concreta 4>
+                """
+                try:
+                    ia_resp = llamar_ia_groq("Genera informes tácticos ejecutivos. Usa lenguaje técnico, preciso y neutro.", prompt_ia_reporte)
+                    texto_completo = str(ia_resp.get('response', ''))
+                    analisis_prosp = texto_completo.split('[DIRECTRICES]')[0].replace('[ANALISIS]', '').strip()
+                    directrices_txt = texto_completo.split('[DIRECTRICES]')[1].strip() if '[DIRECTRICES]' in texto_completo else "1. Mantener monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con fuerzas de seguridad."
+                except Exception as e_ia:
+                    st.warning(f"⚠️ IA temporalmente indisponible. Usando análisis por defecto. ({e_ia})")
+                    analisis_prosp = "El análisis prospectivo indica una dinámica de fricción territorial sostenida, con patrones de ataque focalizados en corredores logísticos secundarios. La proyección a 30 días sugiere mantenimiento de la línea base operativa con posible incremento de hostigamiento simbólico."
+                    directrices_txt = "1. Sostener la inmovilización nocturna para convoyes de carga.\n2. Mantener sincronizados los avisos preventivos.\n3. Actualizar semanalmente coordenadas de faena activa."
+
+                # 🔹 4. ARMADO DEL DOCUMENTO WORD
                 doc = Document()
                 for section in doc.sections:
                     section.top_margin = Inches(0.8)
@@ -1088,43 +1136,23 @@ elif modo_analisis == "📄 Reportes Radar":
                 r_meta.font.italic = True
 
                 doc.add_paragraph() 
-
                 h1 = doc.add_heading("I. Apreciación Descriptiva y Contexto Territorial", level=1)
                 h1.runs[0].font.color.rgb = RGBColor(0x00, 0x33, 0x66)
 
-                total_ev = len(df_filtrado)
-                crit_ev = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO']) if total_ev > 0 and 'nivel_alerta' in df_filtrado.columns else 0
-                ig_ev = len(df_filtrado[df_filtrado['es_rrss'] == True]) if total_ev > 0 and 'es_rrss' in df_filtrado.columns else 0
-                prensa_ev = total_ev - ig_ev
-
-                comunas_validas = []
-                if total_ev > 0 and 'ubicacion' in df_filtrado.columns:
-                    excluir_locs = ['no especificado', 'desconocido', 'sin dato', 'mzs', '', 'macrozona sur'] + COMUNAS_PURGADAS
-                    comunas_serie = df_filtrado['ubicacion'].dropna().astype(str)
-                    comunas_validas = comunas_serie[~comunas_serie.str.lower().str.strip().isin(excluir_locs)]
-
-                comunas_afectadas = comunas_validas.nunique() if len(comunas_validas) > 0 else 0
-                principales_comunas = ", ".join(comunas_validas.value_counts().head(3).index.tolist()) if len(comunas_validas) > 0 else "sectores focales del corredor"
-
                 p_ap1 = doc.add_paragraph()
                 p_ap1.paragraph_format.line_spacing = 1.15
-                p_ap1.paragraph_format.space_after = Pt(6)
                 p_ap1.add_run(
                     f"Durante el periodo sometido a auditoría, el sistema C5I procesó un total de {total_ev} eventos de interés "
-                    f"operativo. La masa crítica destilada se compone de {prensa_ev} reportes extraídos desde partes de contingencia y prensa, "
-                    f"más {ig_ev} trazas de inteligencia nativa interceptadas en redes sociales (Meta/Instagram). La conflictividad hostil "
-                    f"y la presencia policial exhibieron una focalización que abarcó {comunas_afectadas} comunas territorialmente identificables, "
-                    f"saturando de manera principal los ejes de {principales_comunas}."
+                    f"operativo. La masa crítica destilada se compone de {prensa_ev} reportes de prensa, "
+                    f"más {ig_ev} trazas de inteligencia nativa. La conflictividad se focalizó en {comunas_afectadas} comunas, "
+                    f"saturando principalmente los ejes de {principales_comunas}."
                 )
 
                 p_ap2 = doc.add_paragraph()
                 p_ap2.paragraph_format.line_spacing = 1.15
-                p_ap2.paragraph_format.space_after = Pt(12)
                 p_ap2.add_run(
-                    f"El destilado algorítmico arroja que {crit_ev} sucesos asumen carácter CRÍTICO directo para la compañía "
-                    f"al vulnerar o amenazar faenas silvícolas, maquinaria forestal o infraestructura patrimonial. Aquellos hitos "
-                    f"vinculados a inversión comunitaria o pautas políticas públicas han sido filtrados para asegurar la objetividad "
-                    f"de la presente matriz."
+                    f"El destilado algorítmico arroja {crit_ev} sucesos de carácter CRÍTICO directo al vulnerar maquinaria o infraestructura. "
+                    f"La tipología dominante fue {top_tipos[0]}, con atribución frecuente a {top_actores[0] if len(top_actores) > 0 else 'actores no identificados'}."
                 )
 
                 h_graf = doc.add_heading("II. Representación Gráfica de Métricas Operativas", level=1)
@@ -1132,123 +1160,67 @@ elif modo_analisis == "📄 Reportes Radar":
 
                 p_g1 = doc.add_paragraph()
                 p_g1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p_g1.paragraph_format.space_after = Pt(4)
-                r_g1_lbl = p_g1.add_run("Figura 1: Distribución por Tipología Operativa (Prensa e IG combinados)")
-                r_g1_lbl.font.size = Pt(9.0)
-                r_g1_lbl.font.italic = True
-
+                p_g1.add_run("Figura 1: Distribución por Tipología Operativa").font.italic = True
                 doc.add_picture(img_stream_barras, width=Inches(5.8))
-                doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
                 doc.add_paragraph() 
-
                 p_g2 = doc.add_paragraph()
                 p_g2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p_g2.paragraph_format.space_after = Pt(4)
-                r_g2_lbl = p_g2.add_run("Figura 2: Proporción de Estados de Alerta en Ventana de Análisis")
-                r_g2_lbl.font.size = Pt(9.0)
-                r_g2_lbl.font.italic = True
-
+                p_g2.add_run("Figura 2: Proporción de Estados de Alerta").font.italic = True
                 doc.add_picture(img_stream_pie, width=Inches(4.2))
-                doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
                 doc.add_paragraph()
-
                 h2 = doc.add_heading("III. Detalle de Vulneraciones Críticas Directas", level=1)
                 h2.runs[0].font.color.rgb = RGBColor(0x00, 0x33, 0x66)
 
-                df_criticos = df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO'] if total_ev > 0 and 'nivel_alerta' in df_filtrado.columns else pd.DataFrame()
-
+                df_criticos = df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO'] if total_ev > 0 else pd.DataFrame()
                 if not df_criticos.empty:
                     table = doc.add_table(rows=1, cols=3)
                     table.alignment = WD_TABLE_ALIGNMENT.CENTER
                     table.style = 'Table Grid'
-                    
-                    hdr_cells = table.rows[0].cells
-                    hdr_cells[0].text = 'Fecha'
-                    hdr_cells[1].text = 'Comuna / Sector'
-                    hdr_cells[2].text = 'Titular / Descripción Fáctica'
-                    
-                    for cell in hdr_cells:
-                        for paragraph in cell.paragraphs:
-                            for run in paragraph.runs:
-                                run.font.bold = True
-                                run.font.size = Pt(9.5)
-                                run.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
-                    
+                    hdr = table.rows[0].cells
+                    hdr[0].text = 'Fecha'; hdr[1].text = 'Comuna / Sector'; hdr[2].text = 'Titular / Descripción'
+                    for cell in hdr:
+                        for p in cell.paragraphs:
+                            for r in p.runs: r.font.bold = True; r.font.size = Pt(9.5); r.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
                     for _, c_row in df_criticos.iterrows():
-                        row_cells = table.add_row().cells
-                        row_cells[0].text = str(c_row.get('fecha_limpia', ''))
-                        
-                        loc_txt = str(c_row.get('ubicacion', 'MZS')).strip()
-                        row_cells[1].text = loc_txt if loc_txt.lower() not in ['no especificado', 'desconocido'] else "Corredor Forestal"
-                        
-                        tit_txt = str(c_row.get('titular', ''))
-                        act_txt = str(c_row.get('actor', 'N/A')).strip()
-                        atrib = f" [Atribución: {act_txt}]" if act_txt.lower() not in ['desconocido', 'no atribuido', ''] else ""
-                        row_cells[2].text = f"{tit_txt}{atrib}"
-                        
-                        for cell in row_cells:
-                            for p in cell.paragraphs:
-                                for r in p.runs:
-                                    r.font.size = Pt(9.0)
-                    
+                        rc = table.add_row().cells
+                        rc[0].text = str(c_row.get('fecha_limpia', ''))
+                        rc[1].text = str(c_row.get('ubicacion', 'MZS')).strip()
+                        tit = str(c_row.get('titular', ''))
+                        act = str(c_row.get('actor', '')).strip()
+                        rc[2].text = f"{tit}{' [Atribución: '+act+']' if act.lower() not in ['desconocido', '', 'no especificado'] else ''}"
+                        for c in rc:
+                            for p in c.paragraphs:
+                                for r in p.runs: r.font.size = Pt(9.0)
                     doc.add_paragraph()
                 else:
-                    p_safe = doc.add_paragraph()
-                    p_safe.paragraph_format.space_after = Pt(12)
-                    r_safe = p_safe.add_run("En la presente ventana analizada, la compuerta algorítmica no detectó sucesos directos de sabotaje contra el patrimonio o colaboradores de CMPC.")
-                    r_safe.font.italic = True
-                    
+                    doc.add_paragraph("En la presente ventana, no se registraron sucesos críticos directos contra patrimonio CMPC.").italic = True
+
                 h_prosp = doc.add_heading("IV. Análisis Prospectivo y Escenarios de Riesgo", level=1)
                 h_prosp.runs[0].font.color.rgb = RGBColor(0x00, 0x33, 0x66)
-                
-                p_pr1 = doc.add_paragraph()
-                p_pr1.paragraph_format.line_spacing = 1.15
-                p_pr1.paragraph_format.space_after = Pt(6)
-                p_pr1.add_run(
-                    "Con base en la distribución espacial trazada y la evolución temporal capturada en los gráficos precedentes, "
-                    "el sistema deduce una clara intencionalidad de sostenimiento asimétrico por parte de las orgánicas activas. "
-                    "La presencia de pautas combinadas de allanamiento y respuestas armadas indica un nivel de fricción territorial "
-                    "elevado que tiende a desplazar el riesgo logístico hacia corredores secundarios de transporte forestal."
-                )
-                
-                p_pr2 = doc.add_paragraph()
-                p_pr2.paragraph_format.line_spacing = 1.15
-                p_pr2.paragraph_format.space_after = Pt(12)
-                p_pr2.add_run(
-                    "Se proyecta que las instalaciones industriales y anillos perimetrales mantengan un estatus operativo estable "
-                    "siempre y cuando se garantice la retroalimentación continua del perímetro de Geofencing y se apliquen las restricciones "
-                    "de convoyes nocturnos en los tramos críticos de Arauco y Malleco."
-                )
-                
+                for p_txt in analisis_prosp.split('. '):
+                    if p_txt.strip(): doc.add_paragraph(p_txt.strip() + '.').paragraph_format.line_spacing = 1.15
+
                 h3 = doc.add_heading("V. Directrices de Mando Permanentes", level=1)
                 h3.runs[0].font.color.rgb = RGBColor(0x00, 0x33, 0x66)
-                
-                directrices = [
-                    "Sostener la inmovilización nocturna para convoyes de carga en rutas aledañas a los sectores con registros críticos.",
-                    "Mantener sincronizados los avisos preventivos entre los monitores de plataforma y jefaturas de zona.",
-                    "Actualizar semanalmente las coordenadas de faena activa en la base central para asegurar la calibración del Geofencing."
-                ]
-                
-                for idx, d_txt in enumerate(directrices, 1):
-                    p_dir = doc.add_paragraph()
-                    p_dir.paragraph_format.left_indent = Inches(0.2)
-                    p_dir.paragraph_format.space_after = Pt(4)
-                    p_dir.add_run(f"{idx}. ").font.bold = True
-                    p_dir.add_run(d_txt)
+                for line in directrices_txt.split('\n'):
+                    if line.strip():
+                        p_dir = doc.add_paragraph(line.strip())
+                        p_dir.paragraph_format.left_indent = Inches(0.2)
+                        p_dir.paragraph_format.space_after = Pt(4)
 
                 buffer = io.BytesIO()
                 doc.save(buffer)
                 buffer.seek(0)
                 
-                st.success("✔️ Reporte 'Radar de Crisis' compilado con éxito (Gráficos nativos incrustados).")
+                st.success("✔️ Reporte 'Radar de Crisis' compilado con éxito (Análisis IA dinámico + gráficos nativos).")
                 st.download_button(
                     label="📥 Descargar Documento Oficial (.docx)",
                     data=buffer,
                     file_name=f"Radar_de_Crisis_CMPC_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    use_container_width=True
+                    width="stretch"
                 )
             except Exception as e_doc:
-                st.error(f"Error interno al destilar el documento Word con gráficos: {e_doc}")
+                st.error(f"Error interno al compilar el documento: {e_doc}")
