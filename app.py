@@ -59,21 +59,21 @@ def inyectar_evidencia_b64(ruta_local, url_web):
         
     return "", False
 
-# 🔒 CONFIGURACIÓN COMPATIBLE CON STREAMLIT CLOUD
+# 🔒 CONFIGURACIÓN COMPATIBLE CON TODAS LAS VERSIONES DE STREAMLIT
 st.set_page_config(
     page_title="C5I WAR ROOM | CMPC",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 🎨 INYECTAR CSS TÁCTICO (OPTIMIZADO PARA STREAMLIT CLOUD)
+# 🎨 INYECTAR TEMA OSCURO TÁCTICO (100% VÍA CSS, SIN DEPENDER DE st.Theme)
 st.markdown("""
 <style>
-    html, body { background-color: #05080f !important; color: #e0e6ed !important; }
+    html, body, [data-testid="stAppViewContainer"] { background-color: #05080f !important; }
     .stApp { background-color: #05080f !important; color: #e0e6ed; }
     .stSidebar { background-color: #090e16 !important; border-right: 1px solid #1e293b !important; }
-    .stMetric { background-color: #0d121d !important; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     [data-testid="stSidebar"] { background-color: #090e16 !important; }
+    .stMetric { background-color: #0d121d !important; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b !important; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     .card-alerta { background-color: #0d121d !important; padding: 18px; border-radius: 10px; border: 1px solid #1e293b !important; margin-bottom: 12px; transition: all 0.2s ease-in-out; }
     .card-alerta:hover { border-color: #38bdf8 !important; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
     .badge-org { background-color: #1e293b !important; color: #cbd5e1 !important; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
@@ -88,10 +88,10 @@ st.markdown("""
     .section-header { border-bottom: 2px solid #1e293b !important; padding-bottom: 8px; margin-top: 25px; margin-bottom: 15px; color: #38bdf8 !important; }
     h1, h2, h3, h4 { color: #ffffff !important; letter-spacing: -0.5px; }
     div.block-container { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
-    /* Override Streamlit default light theme elements */
-    .st-emotion-cache-1kyxreq { background-color: #0d121d !important; }
-    .st-emotion-cache-1v0mbdj { background-color: #05080f !important; }
-    .st-emotion-cache-1r6slb0 { background-color: #05080f !important; }
+    /* Override elementos nativos claros de Streamlit */
+    .st-emotion-cache-1kyxreq, .st-emotion-cache-1v0mbdj, .st-emotion-cache-1r6slb0, .st-emotion-cache-1lcbmhc { background-color: #05080f !important; }
+    [data-testid="stMetricLabel"] { color: #cbd5e1 !important; }
+    [data-testid="stMetricValue"] { color: #ffffff !important; }
 </style>
 """, unsafe_allow_html=True)
 
