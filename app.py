@@ -169,6 +169,7 @@ def llamar_ia_groq(prompt_sistema, prompt_usuario):
     if not api_key or api_key == "TU_CLAVE_AQUI":
         st.warning("⚠️ GROQ_API_KEY no configurada. Usando análisis táctico base.")
         return {"response": "[ANALISIS] Se requiere clave Groq activa para análisis prospectivo dinámico. [DIRECTRICES]\n1. Mantener monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes nocturnos."}
+        
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
@@ -177,19 +178,19 @@ def llamar_ia_groq(prompt_sistema, prompt_usuario):
             {"role": "system", "content": prompt_sistema},
             {"role": "user", "content": prompt_usuario}
         ],
-        "temperature": 0.1,
-        "response_format": {"type": "json_object"}
+        "temperature": 0.1
     }
+    
     try:
         resp = requests.post(url, headers=headers, json=payload, timeout=20)
         resp.raise_for_status()
         data = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "{}")
+        # Limpia bloques markdown ```json que a veces devuelve Groq
         data = re.sub(r'^```(?:json)?\s*|\s*```$', '', data, flags=re.MULTILINE).strip()
-        return json.loads(data)
+        return {"response": data}
     except Exception as e:
-        st.warning(f"⚠️ Error IA Groq: {e}. Usando fallback.")
+        st.warning(f"⚠️ Error IA Groq: {e}. Usando fallback táctico.")
         return {"response": "[ANALISIS] Conexión IA momentáneamente indisponible. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
-
 # ==============================================================================
 # 2. PANEL LATERAL & FILTROS
 # ==============================================================================
@@ -450,10 +451,15 @@ elif modo == "📄 Reportes Radar":
 
                 rp = f"Ventana: {f_i.strftime('%d/%m/%Y')} al {f_f.strftime('%d/%m/%Y')}\nTotal: {te} | Críticos: {ce} | RRSS: {ie} | Prensa: {pe}\nComunas: {pc}\nTipos: {tt}\nActores: {ta}"
                 try:
-                    ia = llamar_ia_groq("Analista C5I.", f"DATOS: {rp}\nFORMATO:\n[ANALISIS] <2 párrafos>\n[DIRECTRICES]\n1.\n2.\n3.\n4.")
-                    txt = str(ia.get('response','[ANALISIS] Análisis estándar.\n[DIRECTRICES]\n1. Monitoreo.\n2. Perímetros.\n3. Seguridad.\n4. Convoyes.'))
+                    ia = llamar_ia_groq("Analista C5I Senior. Responde en texto plano usando estrictamente los marcadores [ANALISIS] y [DIRECTRICES].", 
+                                        f"DATOS: {rp}\nINSTRUCCIÓN: Genera el análisis y las directrices usando los marcadores solicitados.")
+                    txt = str(ia.get('response', '[ANALISIS] Análisis estándar.\n[DIRECTRICES]\n1. Monitoreo.\n2. Perímetros.\n3. Seguridad.\n4. Convoyes.'))
                     ap_txt = txt.split('[DIRECTRICES]')[0].replace('[ANALISIS]', '').strip()
                     di_txt = txt.split('[DIRECTRICES]')[1].strip() if '[DIRECTRICES]' in txt else "1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."
+                except Exception as e_ia:
+                    st.warning(f"⚠️ IA momentáneamente indisponible ({e_ia}). Usando fallback táctico.")
+                    ap_txt = "Análisis estándar basado en datos filtrados."
+                    di_txt = "1. Monitoreo.\n2. Perímetros.\n3. Seguridad.\n4. Convoyes."                
                 except: ap_txt = "Análisis estándar."; di_txt = "1. Monitoreo.\n2. Perímetros.\n3. Seguridad.\n4. Convoyes."
 
                 doc = Document()
