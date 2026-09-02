@@ -94,7 +94,6 @@ def inyectar_evidencia_b64(ruta_local, url_web):
     if u_web and len(u_web) > 5 and u_web.lower() != 'nan':
         return u_web, any(ext in u_web.lower() for ext in ['.mp4', '.mov', 'reel', 'video'])
         
-    # FIX: Escudo Anti-Imágenes Rotas (Fallback visual)
     return "https://via.placeholder.com/600x300/1e293b/94a3b8?text=Evidencia+Visual+No+Disponible", False
 
 def determinar_sentimiento(texto):
@@ -178,7 +177,7 @@ def cargar_predios():
 def llamar_ia_gemini(prompt_sistema, prompt_usuario):
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key or api_key == "TU_CLAVE_AQUI":
-        return {"response": ""}
+        return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros."}
         
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     prompt_truncado = prompt_usuario[:4000]
@@ -202,11 +201,12 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
             if resp.status_code == 200:
                 data = resp.json()
                 texto_ia = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+                texto_ia = re.sub(r'^```(?:json)?\s*|\s*```$', '', texto_ia, flags=re.MULTILINE).strip()
                 return {"response": texto_ia}
         except Exception:
             continue  
             
-    return {"response": "Error: Servidores de Google saturados."}
+    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
 # 3. PANEL LATERAL & FILTROS
@@ -285,8 +285,10 @@ if modo == "📍 SITREP Táctico":
                 src, vid = inyectar_evidencia_b64(r.get('ruta_evidencia_local',''), r.get('url_foto',''))
                 med = f'<div class="media-container"><video class="media-img" controls muted width="100%"><source src="{src}" type="video/mp4"></video></div>' if vid and src else (f'<div class="media-container"><img src="{src}" class="media-img" loading="lazy" width="100%" style="border-radius:8px; margin-top:8px;"></div>' if src else '')
                 
-                # FIX: Botón azul interactivo en reemplazo de hipervínculo invisible
                 boton_fuente = f'<a href="{r.get("enlace_noticia","#")}" target="_blank" style="background-color:#0284c7; color:white; padding: 6px 12px; border-radius: 4px; font-size:0.8rem; text-decoration:none; font-weight:bold;">🔗 Ver Alerta Original</a>'
+                
+                analisis_texto = str(r.get('analisis_ia','')).strip()
+                if analisis_texto.lower() == 'error ia': analisis_texto = "Análisis táctico no disponible en el registro histórico."
                 
                 st.markdown(f'''<div class="card-alerta" style="border-left: 5px solid {b}; background:var(--bg-panel); padding:15px; border-radius:8px; margin-bottom:12px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
@@ -294,7 +296,7 @@ if modo == "📍 SITREP Táctico":
     <span class="badge-org" style="background:#1e293b; padding:2px 6px; border-radius:4px; font-size:0.7rem;">{act_b}</span>
   </div>
   <h4 style="margin:5px 0; color:#f8fafc;">{r.get('titular','')}</h4>
-  <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;">{str(r.get('analisis_ia',''))[:200]}...</p>
+  <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;">{analisis_texto[:200]}...</p>
   {med}
   <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px; padding-top:10px; border-top: 1px solid #1e293b;">
     <span style="font-size:0.75rem; color:{b}; font-weight:bold;">{a} ❯ {r.get('tipologia_oficial','Otros')}</span>
@@ -366,6 +368,7 @@ elif modo == "📊 Reporte SOCMINT (Redes Sociales)":
             else: st.info("No hay actores identificados en la muestra.")
     else: st.warning("No hay datos en este rango temporal.")
 
+# 🚨 FIX: MAPA CON PYDECK (A prueba de fallos de Plotly)
 elif modo == "🗺️ Visor GEOINT":
     st.subheader("🗺️ Inteligencia Geoespacial Dinámica (Motor PyDeck)")
     if not df_filtrado.empty:
@@ -376,27 +379,23 @@ elif modo == "🗺️ Visor GEOINT":
         cc = t3.toggle("🌲 Predios CMPC", True)
         
         fl = datetime.now().date() - timedelta(days=7)
-        
         layers = []
         
-        def get_color(alerta):
-            if alerta == 'CRÍTICO': return [255, 75, 75, 200]
-            elif alerta == 'ALTO': return [246, 168, 33, 200]
-            elif alerta == 'MEDIO': return [234, 179, 8, 200]
-            elif alerta == 'BAJO': return [56, 189, 248, 200]
-            return [100, 116, 139, 200]
-
-        def get_radius(alerta):
-            if alerta == 'CRÍTICO': return 4000
-            elif alerta == 'ALTO': return 2500
-            elif alerta == 'MEDIO': return 1500
-            return 1000
+        color_map = {
+            'CRÍTICO': [255, 75, 75, 200],
+            'ALTO': [246, 168, 33, 200],
+            'MEDIO': [234, 179, 8, 200],
+            'BAJO': [56, 189, 248, 200]
+        }
         
+        def get_color(alerta):
+            return color_map.get(alerta, [100, 116, 139, 200])
+
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dv.empty:
                 dv['color_rgb'] = dv['nivel_alerta'].apply(get_color)
-                dv['radius'] = dv['nivel_alerta'].apply(get_radius)
+                dv['radius'] = dv['nivel_alerta'].map({'CRÍTICO': 4000, 'ALTO': 2500, 'MEDIO': 1500, 'BAJO': 1000}).fillna(1000)
                 
                 layer_vivo = pdk.Layer(
                     'ScatterplotLayer',
@@ -442,7 +441,6 @@ elif modo == "🗺️ Visor GEOINT":
             except: pass
 
         view_state = pdk.ViewState(latitude=lat_centro, longitude=lon_centro, zoom=6, pitch=0)
-        
         st.pydeck_chart(pdk.Deck(
             map_style='mapbox://styles/mapbox/dark-v10',
             initial_view_state=view_state,
@@ -520,7 +518,6 @@ elif modo == "🔮 Prospectiva IA":
                 criticos = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO'])
                 act_str = str(df_filtrado['actor'].value_counts().head(3).to_dict())
                 tip_str = str(df_filtrado['tipologia_oficial'].value_counts().head(3).to_dict())
-                
                 titulares_fuente = df_filtrado['titular'].head(3).tolist()
                 fuentes_str = "\n".join([f"- {t}" for t in titulares_fuente])
                 
@@ -564,7 +561,6 @@ elif modo == "🔮 Prospectiva IA":
                     cp1, cp2 = st.columns(2)
                     with cp1:
                         st.markdown("#### Tendencia de Fricción")
-                        # FIX: Gráfico dinámico según el riesgo dictaminado por la IA
                         if nivel_proyectado == "CRÍTICO": trend = np.linspace(7, 10, 30) + np.random.normal(0, 0.5, 30)
                         elif nivel_proyectado == "ALTO": trend = np.linspace(5, 9, 30) + np.random.normal(0, 1, 30)
                         else: trend = np.linspace(2, 5, 30) + np.random.normal(0, 1, 30)
@@ -587,7 +583,7 @@ elif modo == "🔮 Prospectiva IA":
                         st.plotly_chart(px.bar(df_grupos, x='capacidad', y='nombre', orientation='h', color='capacidad', color_continuous_scale='Reds').update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white"), use_container_width=True)
                 
                 except Exception as e:
-                    st.error("Error al decodificar la matriz predictiva de la IA. Los servidores devolvieron texto no estructurado.")
+                    st.error("Error al decodificar la matriz predictiva de la IA.")
 
 elif modo == "📄 Reportes Radar":
     st.subheader("📄 Módulo de Exportación Oficial: Radar de Crisis (.docx)")
@@ -599,14 +595,12 @@ elif modo == "📄 Reportes Radar":
                 rp = f"Total: {te} | Críticos: {ce}. Tipologías: {df_filtrado['tipologia_oficial'].value_counts().head(2).to_dict()}"[:1000]
                 
                 try:
-                    # FIX: Obligamos a la IA a devolver un texto limpio sin etiquetas que rompan la división
                     ia = llamar_ia_gemini("Eres analista C5I. Resume la situación en un solo párrafo contundente de 4 líneas máximo.", f"DATOS: {rp}")
                     ap_txt = str(ia.get('response', 'Análisis estándar basado en datos filtrados.'))
                 except:
                     ap_txt = "Análisis estándar basado en datos filtrados."
 
                 doc = Document()
-                # FIX: Diseño Word Corporativo Mejorado
                 doc.add_heading("RADAR DE CRISIS - CMPC", level=1)
                 p = doc.add_paragraph()
                 p.add_run(f"Confidencial - Estado Mayor CMPC | Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}").italic = True
@@ -616,6 +610,14 @@ elif modo == "📄 Reportes Radar":
                 
                 doc.add_heading("2. Apreciación Analítica (IA)", level=2)
                 doc.add_paragraph(ap_txt)
+                
+                # Gráficos más pequeños (5.0 pulgadas)
+                fb, ab = plt.subplots(figsize=(7, 3.5)); fb.patch.set_facecolor('#ffffff'); ab.set_facecolor('#ffffff')
+                dt = df_filtrado['tipologia_oficial'].value_counts() if not df_filtrado.empty else pd.Series()
+                if not dt.empty: dt.head(6).plot(kind='barh', color='#003366', ax=ab); ab.set_title('Composición por Tipología', fontsize=11, fontweight='bold', color='#003366'); ab.set_xlabel('Cantidad de Eventos', fontsize=9); ab.invert_yaxis(); plt.tight_layout()
+                else: ab.text(0.5, 0.5, 'Sin datos', ha='center', va='center')
+                ib = io.BytesIO(); plt.savefig(ib, format='png', dpi=200, bbox_inches='tight'); ib.seek(0); plt.close(fb)
+                doc.add_picture(ib, width=Inches(5.0))
                 
                 doc.add_heading("3. Matriz de Eventos Destacados", level=2)
                 table = doc.add_table(rows=1, cols=3)
@@ -671,7 +673,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                     if not df_filtrado_csv.empty:
                         df_out = pd.DataFrame()
                         
-                        # FIX: Rescatista de Fechas Definitivo
                         if col_fecha:
                             fechas_dt = pd.to_datetime(df_filtrado_csv[col_fecha], errors='coerce', dayfirst=True)
                             df_out['fecha'] = fechas_dt.dt.strftime('%Y-%m-%d %H:%M:%S').fillna(df_filtrado_csv[col_fecha])
@@ -683,11 +684,9 @@ elif modo == "⚙️ Ingesta y Depuración":
                         df_out['catalizador'] = df_filtrado_csv['Service'] if 'Service' in df_m.columns else "RRSS"
                         if col_url: df_out['enlace_noticia'] = df_filtrado_csv[col_url].fillna('')
                         
-                        # FIX: IA Fusión de Actores Automática por Backend
                         actor_bruto = df_filtrado_csv['Actor_Extraido'].replace('', 'Desconocido').tolist()
                         actor_unificado = []
                         
-                        # Limpieza heurística automática (reemplaza la necesidad de botón manual)
                         for a in actor_bruto:
                             a_lower = str(a).lower()
                             if 'elclxbdezorrxs' in a_lower or 'clxbdezorrxs' in a_lower: actor_unificado.append('clxbdezorrxs')
@@ -703,8 +702,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                         st.dataframe(df_actores, use_container_width=True)
 
                         st.markdown("### 📋 Vista Previa de la Matriz Depurada")
-                        
-                        # FIX: Enlaces Clickeables Nativos en la Matriz
                         if col_url:
                             st.dataframe(
                                 df_out,
@@ -793,7 +790,7 @@ elif modo == "⚙️ Ingesta y Depuración":
 
                             if not fila.get('url_foto') or str(fila['url_foto']).lower() == 'nan': cambios['url_foto'] = ""
                             if not fila.get('ruta_evidencia_local') or str(fila['ruta_evidencia_local']).lower() == 'nan': cambios['ruta_evidencia_local'] = ""
-                            if not fila.get('analisis_ia') or str(fila['analisis_ia']).lower() in ['nan', 'none', '']: cambios['analisis_ia'] = "Análisis IA no disponible."
+                            if not fila.get('analisis_ia') or str(fila['analisis_ia']).lower() in ['nan', 'none', '', 'error ia']: cambios['analisis_ia'] = "Análisis táctico no disponible en el registro histórico."
                             if not fila.get('palabra_clave') or str(fila['palabra_clave']).lower() in ['nan', 'none', '']: cambios['palabra_clave'] = "Registro Histórico"
                             if not fila.get('tipologia_oficial') or str(fila['tipologia_oficial']).lower() in ['nan', 'none', '']: cambios['tipologia_oficial'] = "Sabotaje / Otros"
 
@@ -814,13 +811,13 @@ elif modo == "⚙️ Ingesta y Depuración":
                         st.session_state.res_totales = total_filas
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Fallo de conexión o límite de base de datos superado. Intenta de nuevo más tarde. Error: {e}")
+                        st.error(f"Fallo de conexión o política de seguridad de Supabase. Revisa los permisos RLS. Error: {e}")
 
         if st.session_state.purga_completada:
             st.success(f"✅ **OPERACIÓN COMPLETADA.** Se analizaron {st.session_state.res_totales} registros.")
             st.info(f"🗑️ Registros eliminados (Ruido/Basura): **{st.session_state.res_eliminados}**")
             st.info(f"🛠️ Registros reparados/estandarizados: **{st.session_state.res_actualizados}**")
-            st.write("👉 *Ya puedes borrar este bloque de código de tu app.py si lo deseas.*")
+            st.write("👉 *Recuerda: si estos números marcan 0, debes ir a Supabase -> Authentication -> Policies y activar UPDATE y DELETE para la tabla.*")
             if st.button("Restablecer", use_container_width=True):
                 st.session_state.purga_completada = False
                 st.rerun()
