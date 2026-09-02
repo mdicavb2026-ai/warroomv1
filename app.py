@@ -399,7 +399,7 @@ elif modo == "🗺️ Visor GEOINT":
                     name='Predios CMPC'
                 ))
         
-        # FIX: Sintaxis de diccionario estricta para evitar ValueErrors en diferentes versiones de Plotly
+        # --- FIX: Parámetros planos para evitar ValueErrors en Streamlit Cloud ---
         lat_centro, lon_centro = -38.73, -72.59
         try:
             if not dg.empty:
@@ -412,14 +412,12 @@ elif modo == "🗺️ Visor GEOINT":
             pass
 
         fm.update_layout(
-            margin=dict(l=0, r=0, t=0, b=0),
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color="white"),
-            mapbox=dict(
-                style="carto-darkmatter",
-                center=dict(lat=lat_centro, lon=lon_centro),
-                zoom=6
-            )
+            mapbox_style="carto-darkmatter",
+            mapbox_center={"lat": lat_centro, "lon": lon_centro},
+            mapbox_zoom=6,
+            margin={"r": 0, "t": 0, "l": 0, "b": 0},
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="white"
         )
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
@@ -599,6 +597,7 @@ elif modo == "⚙️ Ingesta y Depuración":
             try:
                 df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
                 
+                # FIX: Limpieza profunda de caracteres ocultos (BOM) en las cabeceras de Medusa
                 df_m.columns = df_m.columns.str.strip().str.replace('\ufeff', '')
                 
                 df_m['Text'] = df_m.get('Text', pd.Series(dtype=str)).fillna('')
