@@ -204,7 +204,7 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         except Exception:
             continue  
             
-    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
+    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google."}
 
 # ==============================================================================
 # 3. PANEL LATERAL & FILTROS
