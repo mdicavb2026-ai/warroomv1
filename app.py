@@ -189,7 +189,6 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         st.warning("⚠️ GEMINI_API_KEY no configurada. Usando análisis táctico base.")
         return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
         
-    # Cambiado a 3.6-flash y clave protegida en los headers para que no se filtre en pantalla si hay error
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
     headers = {
         "Content-Type": "application/json",
@@ -362,18 +361,16 @@ elif modo == "🗺️ Visor GEOINT":
         fm = go.Figure()
         fl = datetime.now().date() - timedelta(days=7)
         
-        # Filtrado y trazado de capas (listas puras para evitar crasheos)
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dv.empty:
+                sz = dv['nivel_alerta'].map({'CRÍTICO':20,'ALTO':14,'MEDIO':10,'BAJO':6}).fillna(8).tolist()
+                cl = dv['nivel_alerta'].map({'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}).fillna('#64748b').tolist()
                 fm.add_trace(go.Scattermapbox(
                     lat=dv['latitud_num'].tolist(),
                     lon=dv['longitud_num'].tolist(),
                     mode='markers',
-                    marker=dict(
-                        size=dv['nivel_alerta'].map({'CRÍTICO':20,'ALTO':14,'MEDIO':10,'BAJO':6}).fillna(8).tolist(),
-                        color=dv['nivel_alerta'].map({'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}).fillna('#64748b').tolist()
-                    ),
+                    marker=dict(size=sz, color=cl),
                     text=dv['titular'].tolist(),
                     name='Radar Vivo'
                 ))
@@ -402,27 +399,27 @@ elif modo == "🗺️ Visor GEOINT":
                     name='Predios CMPC'
                 ))
         
-        # --- FIX: Cálculo blindado del centro del mapa ---
+        # FIX: Sintaxis de diccionario estricta para evitar ValueErrors en diferentes versiones de Plotly
+        lat_centro, lon_centro = -38.73, -72.59
         try:
             if not dg.empty:
-                lat_centro = float(dg['latitud_num'].mean())
-                lon_centro = float(dg['longitud_num'].mean())
-                if pd.isna(lat_centro) or pd.isna(lon_centro):
-                    lat_centro, lon_centro = -38.73, -72.59
-            else:
-                lat_centro, lon_centro = -38.73, -72.59
+                c_lat = dg['latitud_num'].mean()
+                c_lon = dg['longitud_num'].mean()
+                if not pd.isna(c_lat) and not pd.isna(c_lon):
+                    lat_centro = float(c_lat)
+                    lon_centro = float(c_lon)
         except:
-            lat_centro, lon_centro = -38.73, -72.59
+            pass
 
         fm.update_layout(
-            mapbox_style="carto-darkmatter", 
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color="white"),
             mapbox=dict(
-                center=dict(lat=lat_centro, lon=lon_centro), 
+                style="carto-darkmatter",
+                center=dict(lat=lat_centro, lon=lon_centro),
                 zoom=6
-            ), 
-            margin=dict(l=0,r=0,t=0,b=0), 
-            paper_bgcolor='rgba(0,0,0,0)', 
-            font_color="white"
+            )
         )
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
@@ -602,7 +599,6 @@ elif modo == "⚙️ Ingesta y Depuración":
             try:
                 df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
                 
-                # FIX: Limpieza profunda de caracteres ocultos (BOM) en las cabeceras de Medusa
                 df_m.columns = df_m.columns.str.strip().str.replace('\ufeff', '')
                 
                 df_m['Text'] = df_m.get('Text', pd.Series(dtype=str)).fillna('')
