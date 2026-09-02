@@ -189,26 +189,32 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         st.warning("⚠️ GEMINI_API_KEY no configurada. Usando análisis táctico base.")
         return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
         
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
-    headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key
-    }
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     payload = {
         "system_instruction": {"parts": [{"text": prompt_sistema}]},
         "contents": [{"role": "user", "parts": [{"text": prompt_usuario}]}],
         "generationConfig": {"temperature": 0.1}
     }
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=25)
-        resp.raise_for_status()
-        data = resp.json()
-        texto_ia = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-        texto_ia = re.sub(r'^```(?:json)?\s*|\s*```$', '', texto_ia, flags=re.MULTILINE).strip()
-        return {"response": texto_ia}
-    except Exception as e:
-        st.warning(f"⚠️ Error conectando con Gemini ({e}). Usando fallback táctico.")
-        return {"response": "[ANALISIS] IA indisponible. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
+    
+    # 🚨 FIX: ESTRATEGIA DE EVASIÓN PARA SERVIDORES SATURADOS (503/404)
+    modelos_disponibles = [
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+    ]
+    
+    for url in modelos_disponibles:
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=20)
+            if resp.status_code == 200:
+                data = resp.json()
+                texto_ia = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+                texto_ia = re.sub(r'^```(?:json)?\s*|\s*```$', '', texto_ia, flags=re.MULTILINE).strip()
+                return {"response": texto_ia}
+        except Exception:
+            continue  # Si falla, salta al siguiente modelo
+            
+    st.warning("⚠️ Servidores de Gemini saturados (503/404). Usando fallback táctico para evitar caída del sistema.")
+    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
 # 3. PANEL LATERAL & FILTROS
@@ -399,7 +405,8 @@ elif modo == "🗺️ Visor GEOINT":
                     name='Predios CMPC'
                 ))
         
-        # --- FIX: Parámetros planos para evitar ValueErrors en Streamlit Cloud ---
+        # 🚨 FIX: ACTUALIZACIÓN FINAL PARA EL MAPA (FORMATO PLANO)
+        # Se elimina el uso de dict() anidados en update_layout para evitar el ValueError de Plotly en la nube
         lat_centro, lon_centro = -38.73, -72.59
         try:
             if not dg.empty:
@@ -411,14 +418,15 @@ elif modo == "🗺️ Visor GEOINT":
         except:
             pass
 
-        fm.update_layout(
-            mapbox_style="carto-darkmatter",
-            mapbox_center={"lat": lat_centro, "lon": lon_centro},
-            mapbox_zoom=6,
-            margin={"r": 0, "t": 0, "l": 0, "b": 0},
-            paper_bgcolor="rgba(0,0,0,0)",
-            font_color="white"
-        )
+        # Aplicación estricta de propiedades
+        fm.layout.mapbox.style = "carto-darkmatter"
+        fm.layout.mapbox.center.lat = lat_centro
+        fm.layout.mapbox.center.lon = lon_centro
+        fm.layout.mapbox.zoom = 6
+        fm.layout.margin = {"r":0, "t":0, "l":0, "b":0}
+        fm.layout.paper_bgcolor = "rgba(0,0,0,0)"
+        fm.layout.font.color = "white"
+
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
 elif modo == "📱 Pulso RRSS e Instagram":
@@ -587,42 +595,76 @@ elif modo == "📄 Reportes Radar":
                 st.download_button(label="📥 Descargar Documento Oficial (.docx)", data=bf, file_name=f"Radar_de_Crisis_CMPC_{datetime.now().strftime('%Y%m%d_%H%M')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", width="stretch")
             except Exception as e: st.error(f"Error al compilar: {e}")
 
+# 🚨 FIX: Módulo Ingesta y Depuración reconstruido. Maneja CSVs crudos de Medusa o limpiados por Excel, cuenta menciones y descubre a los actores que propagan la campaña.
 elif modo == "⚙️ Ingesta y Depuración":
     st.title("⚙️ Motor de Depuración y Filtrado Medusa")
-    st.info("Sube el archivo crudo de Medusa (.csv). El sistema purgará el ruido, aislará los eventos tácticos mediante búsquedas booleanas internas, y extraerá las imágenes reales de los RSS de forma automatizada.")
+    st.info("Sube el archivo de Medusa (.csv). El sistema purgará el ruido, identificará al actor, y agrupará cuántas veces el mismo usuario ha emitido mensajes repetidos.")
     
     archivo = st.file_uploader("Cargar Export Medusa (.csv)", type=['csv'])
     if archivo:
-        with st.spinner("Procesando matriz de datos y limpiando ruido. Esto puede tomar unos segundos..."):
+        with st.spinner("Procesando matriz de datos y aislando actores. Esto puede tomar unos segundos..."):
             try:
-                df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
+                # Intento 1: Leer como archivo crudo de Medusa (separado por pipe |)
+                try:
+                    df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
+                except:
+                    # Intento 2: Si el archivo fue guardado en Excel, se lee por comas (,)
+                    archivo.seek(0)
+                    df_m = pd.read_csv(archivo, sep=',', on_bad_lines='skip', dtype=str)
                 
-                # FIX: Limpieza profunda de caracteres ocultos (BOM) en las cabeceras de Medusa
+                # Limpiar nombres de columnas rebeldes
                 df_m.columns = df_m.columns.str.strip().str.replace('\ufeff', '')
                 
-                df_m['Text'] = df_m.get('Text', pd.Series(dtype=str)).fillna('')
-                df_m['Title'] = df_m.get('Title', pd.Series(dtype=str)).fillna('')
-                df_m['Username Sender'] = df_m.get('Username Sender', pd.Series(dtype=str)).fillna('Desconocido')
-                
-                keywords = r"mapuche|cam|wam|rml|rmm|ataque|incendio|usurpación|robo de madera|corte de ruta|balazos|encapuchados|cmpc|mininco|forestal|predio|reivindica|sabotaje"
-                mask = df_m['Text'].str.contains(keywords, case=False, regex=True) | df_m['Title'].str.contains(keywords, case=False, regex=True)
-                df_filtrado_csv = df_m[mask].copy()
-                
-                if df_filtrado_csv.empty:
-                    st.warning("El archivo no contiene registros críticos tras aplicar el filtro booleano de CMPC.")
+                # Rescatar las columnas vengan como vengan
+                col_texto = 'Text' if 'Text' in df_m.columns else 'titular' if 'titular' in df_m.columns else None
+                col_titulo = 'Title' if 'Title' in df_m.columns else 'titular' if 'titular' in df_m.columns else None
+                col_actor = 'Username Sender' if 'Username Sender' in df_m.columns else 'actor' if 'actor' in df_m.columns else None
+                col_canal = 'Service' if 'Service' in df_m.columns else 'catalizador' if 'catalizador' in df_m.columns else None
+                col_fecha = 'Start' if 'Start' in df_m.columns else 'fecha' if 'fecha' in df_m.columns else None
+
+                if col_texto is None:
+                    st.error("No se encontró una columna de texto válida en el archivo.")
                 else:
-                    st.success(f"Purgado completado: Se descartó el ruido y se aislaron {len(df_filtrado_csv)} eventos tácticos.")
+                    df_m[col_texto] = df_m[col_texto].fillna('')
+                    df_m[col_titulo] = df_m[col_titulo].fillna('') if col_titulo else ''
+                    df_m['Actor_Extraido'] = df_m[col_actor].fillna('Desconocido') if col_actor else 'Desconocido'
                     
-                    df_out = pd.DataFrame()
-                    df_out['fecha'] = pd.to_datetime(df_filtrado_csv.get('Start', pd.Series()), errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
-                    df_out['titular'] = df_filtrado_csv.apply(lambda x: x['Title'] if len(str(x['Title'])) > 5 else str(x['Text'])[:180] + "...", axis=1)
-                    df_out['actor'] = df_filtrado_csv['Username Sender']
-                    df_out['catalizador'] = df_filtrado_csv['Service']
-                    df_out['enlace_noticia'] = "" 
+                    keywords = r"mapuche|cam|wam|rml|rmm|ataque|incendio|usurpación|robo de madera|corte de ruta|balazos|encapuchados|cmpc|mininco|forestal|predio|reivindica|sabotaje"
+                    mask = df_m[col_texto].str.contains(keywords, case=False, regex=True)
+                    if col_titulo: mask = mask | df_m[col_titulo].str.contains(keywords, case=False, regex=True)
                     
-                    st.dataframe(df_out.head(50), use_container_width=True)
+                    df_filtrado_csv = df_m[mask].copy()
                     
-                    if st.button("🔍 Extraer Imágenes Reales (Bypass RSS Google)", type="primary"):
-                        st.warning("Esta función escanea la red para saltar los bloqueos de Google News. Ejecútala solo cuando vayas a inyectar a Supabase.")
+                    if df_filtrado_csv.empty:
+                        st.warning("El archivo no contiene registros críticos tras aplicar el filtro booleano de CMPC.")
+                    else:
+                        st.success(f"Purgado completado: Se aislaron {len(df_filtrado_csv)} eventos tácticos.")
+                        
+                        df_out = pd.DataFrame()
+                        if col_fecha:
+                            df_out['fecha'] = pd.to_datetime(df_filtrado_csv.get(col_fecha, pd.Series()), errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                        else:
+                            df_out['fecha'] = "Sin fecha"
+
+                        # Formatear el titular
+                        if col_titulo and col_texto and col_titulo != col_texto:
+                            df_out['titular'] = df_filtrado_csv.apply(lambda x: x[col_titulo] if len(str(x[col_titulo])) > 5 else str(x[col_texto])[:180] + "...", axis=1)
+                        else:
+                            df_out['titular'] = df_filtrado_csv[col_texto].astype(str).str.slice(0, 180) + "..."
+                            
+                        df_out['actor'] = df_filtrado_csv['Actor_Extraido']
+                        df_out['catalizador'] = df_filtrado_csv[col_canal] if col_canal else "Redes Sociales"
+                        
+                        st.markdown("### 🔍 Mapeo de Actores y Amplificación")
+                        st.write("Identificación de usuarios que repiten el mismo patrón o campaña de ataque en el set de datos:")
+                        
+                        # Agrupar por actor para ver quiénes son los principales difusores (Nodos Amplificadores)
+                        df_actores = df_out['actor'].value_counts().reset_index()
+                        df_actores.columns = ['Actor (Usuario)', 'Cantidad de Mensajes']
+                        st.dataframe(df_actores, use_container_width=True)
+                        
+                        st.markdown("### 📋 Vista Previa de la Matriz Depurada")
+                        st.dataframe(df_out.head(50), use_container_width=True)
+                        
             except Exception as e:
                 st.error(f"Error procesando la matriz de Medusa: {e}. Verifica que el archivo no esté corrupto.")
