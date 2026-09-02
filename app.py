@@ -189,7 +189,8 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         st.warning("⚠️ GEMINI_API_KEY no configurada. Usando análisis táctico base.")
         return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
+    # FIX: Motor cambiado a la versión 3.7 que confirmaste que está activa en tu API
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "system_instruction": {"parts": [{"text": prompt_sistema}]},
@@ -358,20 +359,45 @@ elif modo == "🗺️ Visor GEOINT":
         fm = go.Figure()
         fl = datetime.now().date() - timedelta(days=7)
         
+        # FIX: Conversión estricta a listas (.tolist()) para evitar el crasheo de Plotly _plotly_utils
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dv.empty:
-                fm.add_trace(go.Scattermapbox(lat=dv['latitud_num'], lon=dv['longitud_num'], mode='markers', marker=dict(size=dv['nivel_alerta'].map({'CRÍTICO':20,'ALTO':14,'MEDIO':10,'BAJO':6}).fillna(8), color=dv['nivel_alerta'].map({'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}).fillna('#64748b')), text=dv['titular'], name='Radar Vivo'))
+                fm.add_trace(go.Scattermapbox(
+                    lat=dv['latitud_num'].tolist(),
+                    lon=dv['longitud_num'].tolist(),
+                    mode='markers',
+                    marker=dict(
+                        size=dv['nivel_alerta'].map({'CRÍTICO':20,'ALTO':14,'MEDIO':10,'BAJO':6}).fillna(8).tolist(),
+                        color=dv['nivel_alerta'].map({'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}).fillna('#64748b').tolist()
+                    ),
+                    text=dv['titular'].tolist(),
+                    name='Radar Vivo'
+                ))
         
         if ch and not dg[dg['fecha_eval']<fl].empty:
             dh = dg[dg['fecha_eval']<fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dh.empty:
-                fm.add_trace(go.Scattermapbox(lat=dh['latitud_num'], lon=dh['longitud_num'], mode='markers', marker=dict(size=8, color='#64748b', opacity=0.5), text=dh['titular'], name='Histórico'))
+                fm.add_trace(go.Scattermapbox(
+                    lat=dh['latitud_num'].tolist(),
+                    lon=dh['longitud_num'].tolist(),
+                    mode='markers',
+                    marker=dict(size=8, color='#64748b', opacity=0.5),
+                    text=dh['titular'].tolist(),
+                    name='Histórico'
+                ))
         
         if cc and not df_predios.empty and 'latitud_num' in df_predios.columns and 'longitud_num' in df_predios.columns:
             dp = df_predios.dropna(subset=['latitud_num', 'longitud_num'])
             if not dp.empty:
-                fm.add_trace(go.Scattermapbox(lat=dp['latitud_num'], lon=dp['longitud_num'], mode='markers', marker=dict(size=12, color='#10b981'), text=dp['nombre_predio'], name='Predios CMPC'))
+                fm.add_trace(go.Scattermapbox(
+                    lat=dp['latitud_num'].tolist(),
+                    lon=dp['longitud_num'].tolist(),
+                    mode='markers',
+                    marker=dict(size=12, color='#10b981'),
+                    text=dp['nombre_predio'].tolist(),
+                    name='Predios CMPC'
+                ))
         
         fm.update_layout(mapbox_style="carto-darkmatter", mapbox=dict(center=dict(lat=dg['latitud_num'].mean() if not dg.empty else -38.73, lon=dg['longitud_num'].mean() if not dg.empty else -72.59), zoom=6), margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', font_color="white")
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
@@ -551,6 +577,10 @@ elif modo == "⚙️ Ingesta y Depuración":
         with st.spinner("Procesando matriz de datos y limpiando ruido. Esto puede tomar unos segundos..."):
             try:
                 df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
+                
+                # FIX: Limpieza profunda de caracteres ocultos (BOM) en las cabeceras de Medusa
+                df_m.columns = df_m.columns.str.strip().str.replace('\ufeff', '')
+                
                 df_m['Text'] = df_m.get('Text', pd.Series(dtype=str)).fillna('')
                 df_m['Title'] = df_m.get('Title', pd.Series(dtype=str)).fillna('')
                 df_m['Username Sender'] = df_m.get('Username Sender', pd.Series(dtype=str)).fillna('Desconocido')
@@ -565,7 +595,7 @@ elif modo == "⚙️ Ingesta y Depuración":
                     st.success(f"Purgado completado: Se descartó el ruido y se aislaron {len(df_filtrado_csv)} eventos tácticos.")
                     
                     df_out = pd.DataFrame()
-                    df_out['fecha'] = pd.to_datetime(df_filtrado_csv['Start'], errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    df_out['fecha'] = pd.to_datetime(df_filtrado_csv.get('Start', pd.Series()), errors='coerce').dt.strftime('%Y-%m-%d %H:%M:%S')
                     df_out['titular'] = df_filtrado_csv.apply(lambda x: x['Title'] if len(str(x['Title'])) > 5 else str(x['Text'])[:180] + "...", axis=1)
                     df_out['actor'] = df_filtrado_csv['Username Sender']
                     df_out['catalizador'] = df_filtrado_csv['Service']
