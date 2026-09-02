@@ -71,7 +71,7 @@ h1, h2, h3 { color: var(--text-main) !important; letter-spacing: 0.3px !importan
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 1. DICCIONARIOS DE INTELIGENCIA (PPM & MEDIOS)
+# 1. DICCIONARIOS DE INTELIGENCIA
 # ==============================================================================
 PPM_KEYWORDS = ["Juan Huenupil", "César Millanao", "Orlando Sáez", "Esteban Carrera", "Bernardo Camus", "Matías Leviqueo", "Alexis Manríquez", "Yerko Maril", "Francisco Huichacura", "Esteban Huichacura", "Carlos Huichacura", "Manuel Huichacura", "Claudia Nahuelan", "Víctor Llanquileo", "Oscar Pilquimán", "Eliseo Raiman", "Héctor Llaitul", "Domingo Mariñan", "Manuel Alonso Llempi", "Miguel Llanquileo", "Erick Montoya", "Pablo Cayuhan", "Juan Mariñan", "Elías Cona", "Camilo Astete", "José Luis Marilao", "José Melgarejo", "Guillermo Camus", "Miguel Torres Toro", "Juan Cortés Penchulef", "Alejandro Liguen", "Anthony Torres", "Pedro Palacios", "Jorge Palacios", "Boris Llanca", "Simón Huenchullán", "Juan Queipul", "Joaquín Huenchullán", "Joaquín Millanao", "Marco Tori", "Christopher Tori", "Juan Patricio Queipul", "Danilo Nahuelpi", "Luis David Morales", "Rubén Cheuquepan", "Leandro Catrileo", "José Lienqueo", "Axel Campos", "Luis Melinao", "Benjamín Coñopan", "Fredy Marileo", "Rodrigo Calabrano", "Luis Fuenzalida", "Matías Ancalaf", "Moroni Ancalaf", "Jorge Caniupil", "Oscar Cañupan", "Rafael Pichun", "Luis Menares", "Pelentaro Llaitul", "Juan Carlos Mardones", "Roberto Garling", "Carlos Fierro", "Luis Marileo", "Patricio Queipul", "Raúl Caniullan", "Nelson Queupil", "Rodrigo Cáceres", "Fabian Llanca", "Emilio Berkhoff", "Luis Tranamil", "José Pichunhuala", "Eduardo Fuica", "Guillermo Ñiripil", "Anthu Llanca", "Máximo Queipul", "Daniel Canio Tralcal", "Bastian Llaitul", "Sergio Levinao", "José Sergio Tralcal", "Luis Tralcal", "Celestino Córdova", "Dago Queipul", "Pablo Quidel", "Juan Pablo Pirce"]
 NODOS_MEDIOS = ["mapuexpress", "radiokurruf", "mapuchediario", "radionewen", "elpuelche", "radiojgm", "piensachile", "elciudadano", "mediosdelospueblos", "radiomulutu", "lafkenmawida", "mingaancestral", "comunidadtemucuicui", "lazarzamora", "futatrawun", "resumen", "interferencia", "laizquierdadiario", "araucaniadiario", "rebelion", "resumenlatinoamericano", "aukinlavken", "wall_mapuche", "wallmapunche", "radiouach", "radioplazadeladignidad", "reconstruccionnacionalmapuche", "CDNukeMapu", "ppm_casoquilleco", "memoriasenresistenciatemuko", "redsuperacionalmodeloforestal", "libertad_ppmcam", "wechekekawin", "resistencia.araucanialx", "trepemulen", "wallmapu__libre2", "brotes.del.despojo", "coordinadoraterritorialtome", "liberacionmapuchelafkenche", "lafken.kimun", "resistenciawallmapu", "envivoaquiyahoraofficial", "victor.llanquileo.pilquiman", "werken_noticias"]
@@ -79,17 +79,6 @@ NODOS_MEDIOS = ["mapuexpress", "radiokurruf", "mapuchediario", "radionewen", "el
 # ==============================================================================
 # 2. FUNCIONES AUXILIARES & CARGA DE DATOS
 # ==============================================================================
-def extraer_imagen_real_rss(url):
-    if pd.isna(url) or not isinstance(url, str) or not url.startswith("http"): return ""
-    try:
-        h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        r = requests.get(url, headers=h, timeout=5, allow_redirects=True)
-        soup = BeautifulSoup(r.content, 'html.parser')
-        og = soup.find('meta', property='og:image')
-        if og and og.get('content'): return og['content']
-        return ""
-    except: return ""
-
 def inyectar_evidencia_b64(ruta_local, url_web):
     r_local = str(ruta_local).strip() if ruta_local else ""
     u_web = str(url_web).strip() if url_web else ""
@@ -122,21 +111,38 @@ def cargar_inteligencia_masiva():
         df['fecha_eval'] = df['fecha_dt'].dt.date
         df['latitud_num'] = pd.to_numeric(df['latitud'].astype(str).str.replace(',', '.').str.extract(r'(-?\d+\.\d+)')[0], errors='coerce')
         df['longitud_num'] = pd.to_numeric(df['longitud'].astype(str).str.replace(',', '.').str.extract(r'(-?\d+\.\d+)')[0], errors='coerce')
-        evals = df.apply(lambda r: normalizar_tipologia_profunda(r['titular'], r.get('analisis_ia', ''), r.get('tipologia_oficial', '')), axis=1)
+        
+        def norm_tipo(tit, res, db):
+            txt = f"{tit} {res}".lower()
+            if any(x in txt for x in ['incendio','incendiario','quema','fuego','siniestro']): return 'Ataque Incendiario', 'CRÍTICO'
+            if any(x in txt for x in ['madera','tala','hurto forestal','robo forestal']): return 'Robo de Madera', 'ALTO'
+            if any(x in txt for x in ['usurpación','toma','ocupación','desalojo']): return 'Usurpación', 'ALTO'
+            if any(x in txt for x in ['ruta','corte','barricada','bloqueo']): return 'Corte de Ruta', 'MEDIO'
+            if any(x in txt for x in ['balazos','disparos','armado','munición']): return 'Ataque Armado', 'CRÍTICO'
+            return 'Sabotaje / Otros', 'MEDIO'
+
+        evals = df.apply(lambda r: norm_tipo(r['titular'], r.get('analisis_ia', ''), r.get('tipologia_oficial', '')), axis=1)
         df['tipologia_oficial'] = [e[0] for e in evals]
         df['alerta_semantica'] = [e[1] for e in evals]
-        df['es_rrss'] = df['catalizador'].str.contains('Redes Sociales|Instagram', case=False, na=False) | df['titular'].str.contains('vía Instagram|@', case=False, na=False) | df['enlace_noticia'].str.contains('instagram.com', case=False, na=False)
+        df['es_rrss'] = df['catalizador'].str.contains('Redes Sociales|Instagram', case=False, na=False) | df['titular'].str.contains('vía Instagram|@', case=False, na=False)
         df['canal_origen'] = np.where(df['es_rrss'], 'Meta/Instagram', 'Monitoreo de Terreno (Prensa/RSS)')
-        jerarquias = df['ubicacion'].apply(deducir_jerarquia)
+        
+        def map_region(u):
+            u_n = str(u).strip().lower()
+            if 'arauco' in u_n or 'cañete' in u_n or 'tirúa' in u_n: return 'Arauco', 'Región del Biobío'
+            if 'malleco' in u_n or 'ercilla' in u_n or 'collipulli' in u_n: return 'Malleco', 'Región de La Araucanía'
+            if 'cautín' in u_n or 'temuco' in u_n: return 'Cautín', 'Región de La Araucanía'
+            return 'Zona Focalizada', 'Macrozona Sur'
+            
+        jerarquias = df['ubicacion'].apply(map_region)
         df['provincia'], df['region'] = [j[0] for j in jerarquias], [j[1] for j in jerarquias]
         df['mes_anio'] = df['fecha_dt'].dt.strftime('%Y-%m')
         df['nivel_alerta'] = df['alerta_semantica']
         crit = "cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
-        df.loc[df['titular'].str.contains(crit, case=False, na=False) & (df['tipologia_oficial'] != 'Informativo / Positivo corporativo'), 'nivel_alerta'] = 'CRÍTICO'
-        df = df[~df['titular'].str.contains("platería|artesanía|teatro|concierto|festival|básquetbol|fútbol|receta|turismo|poesía", case=False, na=False)]
+        df.loc[df['titular'].str.contains(crit, case=False, na=False), 'nivel_alerta'] = 'CRÍTICO'
+        df = df[~df['titular'].str.contains("platería|artesanía|teatro|concierto|festival|básquetbol|fútbol", case=False, na=False)]
         return df
     except Exception as e:
-        st.error(f"Error crítico en extracción: {e}")
         return pd.DataFrame()
 
 @st.cache_data(ttl=300)
@@ -150,44 +156,10 @@ def cargar_predios():
         return df.dropna(subset=['latitud_num', 'longitud_num'])
     except: return pd.DataFrame()
 
-def deducir_jerarquia(u):
-    u_n = str(u).strip().lower()
-    purga = ['zuyituaín kufike kimün','wallmapuche','libredeterminacionmapuche','no especificado','desconocido','sin dato']
-    if any(p in u_n for p in purga): return 'Zona Focalizada', 'Macrozona Sur'
-    mp = {'Arauco':['Tirúa','Contulmo','Cañete','Los Álamos','Curanilahue','Arauco','Lebu'],'Malleco':['Collipulli','Ercilla','Traiguén','Lumaco','Purén','Angol','Los Sauces','Renaico','Victoria','Curacautín','Lonquimay','Temucuicui'],'Cautín':['Temuco','Padre Las Casas','Vilcún','Freire','Pitrufquén','Gorbea','Loncoche','Toltén','Teodoro Schmidt','Saavedra','Carahue','Nueva Imperial','Cholchol','Galvarino','Lautaro','Perquenco','Cunco','Melipeuco','Pucón','Villarrica'],'Biobío':['Mulchén','Nacimiento','Negrete','Quilleco','Santa Bárbara','Tucapel','Yumbel','Alto Biobío','Los Ángeles'],'Los Ríos':['Panguipulli','Lanco','Máfil','Valdivia','Mariquina','Río Bueno','La Unión'],'Los Lagos':['Osorno','San Juan de la Costa','Puyehue','Río Negro','Frutillar','Llanquihue','Puerto Varas','Puerto Montt']}
-    mr = {'Región del Biobío':['Arauco','Biobío'],'Región de La Araucanía':['Malleco','Cautín'],'Región de Los Ríos':['Los Ríos'],'Región de Los Lagos':['Los Lagos']}
-    for prov, comunas in mp.items():
-        if any(c.lower() in u_n for c in comunas):
-            for reg, provs in mr.items():
-                if prov in provs: return prov, reg
-    return 'Zona Focalizada', 'Macrozona Sur'
-
-def normalizar_tipologia_profunda(tit, res, db=""):
-    txt = f"{tit} {res}".lower()
-    pos = ['inversión','aportados por la empresa cmpc','desafío levantemos chile','inauguración','apoyo comunitario','donación','millones aportados','obra contempló','entregó viviendas','aportes']
-    if any(p in txt for p in pos) and any(c in txt for c in ['cmpc','mininco','empresa']): return 'Informativo / Positivo corporativo', 'BAJO'
-    allan = any(x in txt for x in ['allanamient','allanan','ingreso policial','libredeterminacionmapuche'])
-    armado = any(x in txt for x in ['balazos','disparos','armado','munición','armas','emboscada','subametralladora','pistola'])
-    if allan and armado: return 'Allanamiento / Ataque Armado', 'ALTO'
-    if allan: return 'Allanamiento', 'MEDIO'
-    if any(x in txt for x in ['incauta','operativo policial','carabineros detiene','pdi detiene','procedimiento policial']): return 'Operativo Policial / Incautación', 'MEDIO'
-    if any(x in txt for x in ['ministra de seguridad','exigen liberación','preso político mapuche','comunicado','declaración pública','seremi de seguridad','gobierno','reinaldo penchulef','penchulef','wallmapuche']) and not any(x in txt for x in ['quema','incendio','atentado','fundo cmpc']): return 'Declaración / Pauta Política', 'BAJO'
-    db_t = str(db).strip()
-    if db_t == 'Ataque Incendiario': return 'Ataque Incendiario', 'CRÍTICO'
-    if db_t == 'Robo de Madera': return 'Robo de Madera', 'ALTO'
-    if db_t == 'Ataque Armado': return 'Ataque Armado', 'CRÍTICO'
-    if any(x in txt for x in ['incendio','incendiario','quema','fuego','siniestro']): return 'Ataque Incendiario', 'CRÍTICO'
-    if any(x in txt for x in ['madera','tala','hurto forestal','robo forestal','camión cargado']): return 'Robo de Madera', 'ALTO'
-    if any(x in txt for x in ['usurpación','toma','ocupación','desalojo','reivindicación']): return 'Usurpación', 'ALTO'
-    if any(x in txt for x in ['ruta','corte','barricada','bloqueo','despeje','árboles caídos']): return 'Corte de Ruta', 'MEDIO'
-    if armado: return 'Ataque Armado', 'CRÍTICO'
-    return 'Sabotaje / Otros', 'MEDIO'
-
 def llamar_ia_gemini(prompt_sistema, prompt_usuario):
     api_key = st.secrets.get("GEMINI_API_KEY")
     if not api_key or api_key == "TU_CLAVE_AQUI":
-        st.warning("⚠️ GEMINI_API_KEY no configurada. Usando análisis táctico base.")
-        return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
+        return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad."}
         
     headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     payload = {
@@ -199,9 +171,9 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
     # 🚨 FIX: ESTRATEGIA DE EVASIÓN MULTI-MODELO PARA EVITAR EL ERROR 503/404 DE GOOGLE
     modelos_disponibles = [
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
     ]
     
     for url in modelos_disponibles:
@@ -215,7 +187,6 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         except Exception:
             continue  
             
-    st.warning("⚠️ Servidores de Gemini completamente saturados (503/404). Usando fallback táctico para evitar caída del sistema.")
     return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
@@ -230,16 +201,10 @@ st.sidebar.divider()
 modo = st.sidebar.radio("CANAL OPERATIVO:", ["📍 SITREP Táctico", "📊 Estadísticas MZS", "🗺️ Visor GEOINT", "📱 Pulso RRSS e Instagram", "🕸️ Análisis de Redes (SNA)", "🔮 Prospectiva IA", "📄 Reportes Radar", "⚙️ Ingesta y Depuración"])
 st.sidebar.divider()
 st.sidebar.markdown("### ⏱️ Filtro Temporal")
-rango = st.sidebar.selectbox("Ventana de Visualización:", ["Últimas 24 Horas", "Últimos 7 Días", "Últimos 30 Días", "Últimos 3 Meses", "Últimos 6 Meses", "Último Año", "🚨 Histórico Completo", "Rango Personalizado"], index=2)
+rango = st.sidebar.selectbox("Ventana de Visualización:", ["Últimas 24 Horas", "Últimos 7 Días", "Últimos 30 Días", "Últimos 3 Meses", "Últimos 6 Meses", "Último Año", "🚨 Histórico Completo"], index=2)
 hoy = datetime.now().date()
-if rango == "🚨 Histórico Completo": f_i, f_f, hist = datetime(2010,1,1).date(), hoy, True
-elif rango == "Rango Personalizado":
-    f_i = st.sidebar.date_input("Desde:", hoy - timedelta(days=30))
-    f_f = st.sidebar.date_input("Hasta:", hoy)
-    hist = False
-else:
-    d = {"Últimas 24 Horas":1,"Últimos 7 Días":7,"Últimos 30 Días":30,"Últimos 3 Meses":90,"Últimos 6 Meses":180,"Último Año":365}.get(rango,30)
-    f_i, f_f, hist = hoy - timedelta(days=d), hoy, False
+dias = {"Últimas 24 Horas":1,"Últimos 7 Días":7,"Últimos 30 Días":30,"Últimos 3 Meses":90,"Últimos 6 Meses":180,"Último Año":365}.get(rango, 3650)
+f_i, f_f, hist = hoy - timedelta(days=dias), hoy, rango == "🚨 Histórico Completo"
 
 # ==============================================================================
 # 4. CARGA, FILTRADO & MÉTRICAS (Orden lógico garantizado)
@@ -247,15 +212,12 @@ else:
 df_main = cargar_inteligencia_masiva()
 df_predios = cargar_predios()
 
-if st.session_state.filtro_cmpc_activo:
-    st.warning("⚠️ MODO FILTRO TÁCTICO: Mostrando únicamente incidentes con afectación a CMPC / Mininco.")
-    if not df_main.empty:
-        c = "cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
-        df_main = df_main[df_main['titular'].str.contains(c, case=False, na=False)]
-
 df_filtrado = pd.DataFrame()
 if not df_main.empty:
     df_filtrado = df_main.copy() if hist else df_main[(df_main['fecha_eval'] >= f_i) & (df_main['fecha_eval'] <= f_f)].copy()
+    if st.session_state.filtro_cmpc_activo:
+        c = "cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal"
+        df_filtrado = df_filtrado[df_filtrado['titular'].str.contains(c, case=False, na=False)]
     if st.session_state.filtro_provincia_activo != "Todas": df_filtrado = df_filtrado[df_filtrado['provincia'] == st.session_state.filtro_provincia_activo]
     if st.session_state.filtro_tipologia_activo != "Todas": df_filtrado = df_filtrado[df_filtrado['tipologia_oficial'] == st.session_state.filtro_tipologia_activo]
     if st.session_state.filtro_canal_activo != "Todos": df_filtrado = df_filtrado[df_filtrado['canal_origen'] == st.session_state.filtro_canal_activo]
@@ -266,11 +228,7 @@ if not df_main.empty:
 if modo != "⚙️ Ingesta y Depuración":
     st.title("WAR ROOM C5I ❯ PUESTO DE MANDO UNIFICADO")
     tot = len(df_filtrado)
-    crit = 0
-    if tot > 0:
-        m = df_filtrado['titular'].str.contains("cmpc|mininco|forestal mininco|fundo cmpc|predio cmpc|camión forestal|maquinaria forestal", case=False, na=False)
-        df_c = df_filtrado[m]
-        crit = len(df_c[df_c['nivel_alerta'] == 'CRÍTICO']) if 'nivel_alerta' in df_c.columns else 0
+    crit = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO']) if tot > 0 and 'nivel_alerta' in df_filtrado.columns else 0
     estado = "ESTABLE" if crit == 0 else "ALERTA TEMPRANA" if crit < 5 else "RIESGO CRÍTICO"
     c_sema = "ok" if estado == "ESTABLE" else "warn" if estado == "ALERTA TEMPRANA" else "crit"
 
@@ -282,13 +240,13 @@ if modo != "⚙️ Ingesta y Depuración":
     </div>''', unsafe_allow_html=True)
 
     c1, c2, c3, c4 = st.columns(4)
-    with c1: st.metric("TRAZAS EN EL PERIODO", tot); st.caption("Registros tras purga de ruido.")
+    with c1: st.metric("TRAZAS EN EL PERIODO", tot)
     with c2:
         st.metric("AFECTACIÓN DIRECTA CMPC", crit, delta=estado, delta_color="inverse" if crit>0 else "normal")
         if st.button("🔍 Ver Detalle CMPC" if not st.session_state.filtro_cmpc_activo else "❌ Quitar Filtro", key="btn_cmpc"):
             st.session_state.filtro_cmpc_activo = not st.session_state.filtro_cmpc_activo; st.rerun()
-    with c3: st.metric("INGESTIÓN REDES SOCIALES", len(df_filtrado[df_filtrado['es_rrss']==True]) if tot>0 else 0); st.caption("Capturas Meta/IG auditadas.")
-    with c4: st.metric("ANILLOS PERIMETRALES", len(df_predios)); st.caption("Predios bajo geofencing activo.")
+    with c3: st.metric("INGESTIÓN REDES SOCIALES", len(df_filtrado[df_filtrado['es_rrss']==True]) if tot>0 else 0)
+    with c4: st.metric("ANILLOS PERIMETRALES", len(df_predios))
     st.divider()
 
 if modo == "📍 SITREP Táctico":
@@ -299,18 +257,17 @@ if modo == "📍 SITREP Táctico":
             for _, r in df_filtrado.head(35).iterrows():
                 a = str(r.get('nivel_alerta','MEDIO')).upper()
                 b = "#ff4b4b" if a=='CRÍTICO' else "#f6a821" if a=='ALTO' else "#eab308" if a=='MEDIO' else "#38bdf8"
-                act = str(r.get('actor','No Atribuido')).strip()
-                act_b = act if act.lower() not in ['desconocido','no especificado','sin dato'] else "Sin Adjudicación"
+                act_b = str(r.get('actor','No Atribuido')).strip()
+                if act_b.lower() in ['desconocido','no especificado','sin dato', 'nan']: act_b = "Sin Adjudicación"
                 src, vid = inyectar_evidencia_b64(r.get('ruta_evidencia_local',''), r.get('url_foto',''))
                 med = f'<div class="media-container"><video class="media-img" controls muted width="100%"><source src="{src}" type="video/mp4"></video></div>' if vid and src else (f'<div class="media-container"><img src="{src}" class="media-img" loading="lazy" width="100%" style="border-radius:8px; margin-top:8px;"></div>' if src else '')
-                res = str(r.get('analisis_ia',''))[:150] if str(r.get('analisis_ia','')).lower() not in ['nan','none',''] else "Sin síntesis textual."
                 st.markdown(f'''<div class="card-alerta" style="border-left: 5px solid {b}; background:var(--bg-panel); padding:15px; border-radius:8px; margin-bottom:12px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
     <span style="font-size:0.8rem; color:var(--text-muted);">📅 {r.get('fecha_limpia','')} | 📍 {r.get('ubicacion','')}</span>
     <span class="badge-org" style="background:#1e293b; padding:2px 6px; border-radius:4px; font-size:0.7rem;">{act_b}</span>
   </div>
   <h4 style="margin:5px 0; color:#f8fafc;">{r.get('titular','')}</h4>
-  <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;">{res}</p>
+  <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;">{str(r.get('analisis_ia',''))[:150]}</p>
   {med}
   <div style="display:flex; justify-content:space-between; margin-top:10px;">
     <span style="font-size:0.75rem; color:{b}; font-weight:bold;">{a} ❯ {r.get('tipologia_oficial','Otros')}</span>
@@ -369,8 +326,23 @@ elif modo == "🗺️ Visor GEOINT":
         
         fl = datetime.now().date() - timedelta(days=7)
         
-        # 🚨 FIX DEFINITIVO PARA EL MAPA: Construcción completamente plana y compatible con cualquier versión de Plotly en Streamlit
-        fm = go.Figure()
+        # 🚨 FIX DEFINITIVO DE PLOTLY: Parámetros 100% planos
+        lat_centro, lon_centro = -38.73, -72.59
+        if not dg.empty:
+            c_lat = dg['latitud_num'].mean()
+            c_lon = dg['longitud_num'].mean()
+            if not pd.isna(c_lat) and not pd.isna(c_lon):
+                lat_centro, lon_centro = float(c_lat), float(c_lon)
+
+        fm = go.Figure(layout=go.Layout(
+            mapbox_style="carto-darkmatter",
+            mapbox_center_lat=lat_centro,
+            mapbox_center_lon=lon_centro,
+            mapbox_zoom=6,
+            margin_r=0, margin_t=0, margin_l=0, margin_b=0,
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="white"
+        ))
         
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
@@ -378,57 +350,29 @@ elif modo == "🗺️ Visor GEOINT":
                 sz = dv['nivel_alerta'].map({'CRÍTICO':20,'ALTO':14,'MEDIO':10,'BAJO':6}).fillna(8).tolist()
                 cl = dv['nivel_alerta'].map({'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}).fillna('#64748b').tolist()
                 fm.add_trace(go.Scattermapbox(
-                    lat=dv['latitud_num'].tolist(),
-                    lon=dv['longitud_num'].tolist(),
-                    mode='markers',
-                    marker={'size': sz, 'color': cl},
-                    text=dv['titular'].tolist(),
-                    name='Radar Vivo'
+                    lat=dv['latitud_num'].tolist(), lon=dv['longitud_num'].tolist(),
+                    mode='markers', marker=dict(size=sz, color=cl),
+                    text=dv['titular'].tolist(), name='Radar Vivo'
                 ))
         
         if ch and not dg[dg['fecha_eval']<fl].empty:
             dh = dg[dg['fecha_eval']<fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dh.empty:
                 fm.add_trace(go.Scattermapbox(
-                    lat=dh['latitud_num'].tolist(),
-                    lon=dh['longitud_num'].tolist(),
-                    mode='markers',
-                    marker={'size': 8, 'color': '#64748b', 'opacity': 0.5},
-                    text=dh['titular'].tolist(),
-                    name='Histórico'
+                    lat=dh['latitud_num'].tolist(), lon=dh['longitud_num'].tolist(),
+                    mode='markers', marker=dict(size=8, color='#64748b', opacity=0.5),
+                    text=dh['titular'].tolist(), name='Histórico'
                 ))
         
         if cc and not df_predios.empty and 'latitud_num' in df_predios.columns and 'longitud_num' in df_predios.columns:
             dp = df_predios.dropna(subset=['latitud_num', 'longitud_num'])
             if not dp.empty:
                 fm.add_trace(go.Scattermapbox(
-                    lat=dp['latitud_num'].tolist(),
-                    lon=dp['longitud_num'].tolist(),
-                    mode='markers',
-                    marker={'size': 12, 'color': '#10b981'},
-                    text=dp['nombre_predio'].tolist(),
-                    name='Predios CMPC'
+                    lat=dp['latitud_num'].tolist(), lon=dp['longitud_num'].tolist(),
+                    mode='markers', marker=dict(size=12, color='#10b981'),
+                    text=dp['nombre_predio'].tolist(), name='Predios CMPC'
                 ))
-        
-        lat_centro, lon_centro = -38.73, -72.59
-        try:
-            if not dg.empty:
-                c_lat = dg['latitud_num'].mean()
-                c_lon = dg['longitud_num'].mean()
-                if not pd.isna(c_lat) and not pd.isna(c_lon):
-                    lat_centro = float(c_lat)
-                    lon_centro = float(c_lon)
-        except:
-            pass
-
-        # Aplicación completamente plana, sin clases complejas que generen ValueError
-        fm.update_layout(
-            mapbox={"style": "carto-darkmatter", "center": {"lat": lat_centro, "lon": lon_centro}, "zoom": 6},
-            margin={"r": 0, "t": 0, "l": 0, "b": 0},
-            paper_bgcolor="rgba(0,0,0,0)",
-            font={"color": "white"}
-        )
-
+                
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
 elif modo == "📱 Pulso RRSS e Instagram":
@@ -502,7 +446,6 @@ elif modo == "🔮 Prospectiva IA":
         if st.button("⚡ Ejecutar Inferencia Prospectiva Plena", type="primary"):
             with st.spinner("Modelando frentes de prospección con IA..."):
                 
-                # Resumir la data real en pantalla para enviarla a Gemini
                 total_ataques = len(df_filtrado)
                 criticos = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO'])
                 actores_detectados = df_filtrado['actor'].value_counts().head(3).to_dict()
@@ -624,7 +567,7 @@ elif modo == "📄 Reportes Radar":
                 st.download_button(label="📥 Descargar Documento Oficial (.docx)", data=bf, file_name=f"Radar_de_Crisis_CMPC_{datetime.now().strftime('%Y%m%d_%H%M')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", width="stretch")
             except Exception as e: st.error(f"Error al compilar: {e}")
 
-# 🚨 FIX: Módulo Ingesta y Depuración reconstruido. Maneja CSVs crudos de Medusa o limpiados por Excel, cuenta menciones y descubre a los actores que propagan la campaña.
+# 🚨 FIX: Módulo Ingesta y Depuración reconstruido. Maneja CSVs crudos de Medusa o limpiados por Excel, cuenta menciones, descubre a los actores y extrae URLs y Post completos.
 elif modo == "⚙️ Ingesta y Depuración":
     st.title("⚙️ Motor de Depuración y Filtrado Medusa")
     st.info("Sube el archivo de Medusa (.csv). El sistema purgará el ruido, identificará al actor, y agrupará cuántas veces el mismo usuario ha emitido mensajes repetidos.")
@@ -645,6 +588,8 @@ elif modo == "⚙️ Ingesta y Depuración":
                 col_titulo = 'Title' if 'Title' in df_m.columns else 'titular' if 'titular' in df_m.columns else None
                 col_canal = 'Service' if 'Service' in df_m.columns else 'catalizador' if 'catalizador' in df_m.columns else None
                 col_fecha = 'Start' if 'Start' in df_m.columns else 'fecha' if 'fecha' in df_m.columns else None
+                # Se detecta el enlace para no perder trazabilidad
+                col_url = 'enlace_noticia' if 'enlace_noticia' in df_m.columns else None 
 
                 # Lógica robusta para identificar al Actor (buscando la traducción que hace Medusa)
                 if 'Nombre de usuario Sender' in df_m.columns:
@@ -663,6 +608,7 @@ elif modo == "⚙️ Ingesta y Depuración":
                 else:
                     df_m[col_texto] = df_m[col_texto].fillna('')
                     df_m[col_titulo] = df_m[col_titulo].fillna('') if col_titulo else ''
+                    if col_url: df_m[col_url] = df_m[col_url].fillna('')
                     
                     keywords = r"mapuche|cam|wam|rml|rmm|ataque|incendio|usurpación|robo de madera|corte de ruta|balazos|encapuchados|cmpc|mininco|forestal|predio|reivindica|sabotaje"
                     mask = df_m[col_texto].str.contains(keywords, case=False, regex=True)
@@ -681,13 +627,19 @@ elif modo == "⚙️ Ingesta y Depuración":
                         else:
                             df_out['fecha'] = "Sin fecha"
 
+                        # Formateo sin recortar el texto, para que no pierdas la info original del post
                         if col_titulo and col_texto and col_titulo != col_texto:
-                            df_out['titular'] = df_filtrado_csv.apply(lambda x: x[col_titulo] if len(str(x[col_titulo])) > 5 else str(x[col_texto])[:180] + "...", axis=1)
+                            df_out['titular'] = df_filtrado_csv.apply(lambda x: x[col_titulo] if len(str(x[col_titulo])) > 5 else str(x[col_texto]), axis=1)
+                            df_out['contenido_post'] = df_filtrado_csv[col_texto]
                         else:
-                            df_out['titular'] = df_filtrado_csv[col_texto].astype(str).str.slice(0, 180) + "..."
+                            df_out['titular'] = df_filtrado_csv[col_texto].astype(str)
+                            df_out['contenido_post'] = df_filtrado_csv[col_texto]
                             
                         df_out['actor'] = df_filtrado_csv['Actor_Extraido']
                         df_out['catalizador'] = df_filtrado_csv[col_canal] if col_canal else "Redes Sociales"
+                        
+                        if col_url:
+                            df_out['enlace_noticia'] = df_filtrado_csv[col_url]
                         
                         st.markdown("### 🔍 Mapeo de Actores y Amplificación")
                         st.write("Identificación de usuarios que repiten el mismo patrón o campaña de ataque en el set de datos:")
