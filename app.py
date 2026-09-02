@@ -369,30 +369,8 @@ elif modo == "🗺️ Visor GEOINT":
         
         fl = datetime.now().date() - timedelta(days=7)
         
-        # 🚨 FIX: Construcción DIRECTA de la estructura del Layout para burlar el error de la Nube de Streamlit
-        lat_centro, lon_centro = -38.73, -72.59
-        try:
-            if not dg.empty:
-                c_lat = dg['latitud_num'].mean()
-                c_lon = dg['longitud_num'].mean()
-                if not pd.isna(c_lat) and not pd.isna(c_lon):
-                    lat_centro = float(c_lat)
-                    lon_centro = float(c_lon)
-        except:
-            pass
-
-        layout_seguro = go.Layout(
-            mapbox=dict(
-                style="carto-darkmatter",
-                center=dict(lat=lat_centro, lon=lon_centro),
-                zoom=6
-            ),
-            margin=dict(r=0, t=0, l=0, b=0),
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="white")
-        )
-        
-        fm = go.Figure(layout=layout_seguro)
+        # 🚨 FIX DEFINITIVO PARA EL MAPA: Construcción completamente plana y compatible con cualquier versión de Plotly en Streamlit
+        fm = go.Figure()
         
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
@@ -403,7 +381,7 @@ elif modo == "🗺️ Visor GEOINT":
                     lat=dv['latitud_num'].tolist(),
                     lon=dv['longitud_num'].tolist(),
                     mode='markers',
-                    marker=dict(size=sz, color=cl),
+                    marker={'size': sz, 'color': cl},
                     text=dv['titular'].tolist(),
                     name='Radar Vivo'
                 ))
@@ -415,7 +393,7 @@ elif modo == "🗺️ Visor GEOINT":
                     lat=dh['latitud_num'].tolist(),
                     lon=dh['longitud_num'].tolist(),
                     mode='markers',
-                    marker=dict(size=8, color='#64748b', opacity=0.5),
+                    marker={'size': 8, 'color': '#64748b', 'opacity': 0.5},
                     text=dh['titular'].tolist(),
                     name='Histórico'
                 ))
@@ -427,10 +405,29 @@ elif modo == "🗺️ Visor GEOINT":
                     lat=dp['latitud_num'].tolist(),
                     lon=dp['longitud_num'].tolist(),
                     mode='markers',
-                    marker=dict(size=12, color='#10b981'),
+                    marker={'size': 12, 'color': '#10b981'},
                     text=dp['nombre_predio'].tolist(),
                     name='Predios CMPC'
                 ))
+        
+        lat_centro, lon_centro = -38.73, -72.59
+        try:
+            if not dg.empty:
+                c_lat = dg['latitud_num'].mean()
+                c_lon = dg['longitud_num'].mean()
+                if not pd.isna(c_lat) and not pd.isna(c_lon):
+                    lat_centro = float(c_lat)
+                    lon_centro = float(c_lon)
+        except:
+            pass
+
+        # Aplicación completamente plana, sin clases complejas que generen ValueError
+        fm.update_layout(
+            mapbox={"style": "carto-darkmatter", "center": {"lat": lat_centro, "lon": lon_centro}, "zoom": 6},
+            margin={"r": 0, "t": 0, "l": 0, "b": 0},
+            paper_bgcolor="rgba(0,0,0,0)",
+            font={"color": "white"}
+        )
 
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
@@ -496,13 +493,40 @@ elif modo == "🕸️ Análisis de Redes (SNA)":
             with open("sna_tmp.html", 'r', encoding='utf-8') as f: components.html(f.read(), height=680)
         else: st.info("Pares relacionales insuficientes.")
 
+# 🚨 FIX: ACTUALIZACIÓN DEL MÓDULO DE PROSPECTIVA (CONECTADO A GEMINI DE FORMA DINÁMICA)
 elif modo == "🔮 Prospectiva IA":
     st.subheader("🔮 Prospectiva IA y Simulación Operativa")
+    st.markdown("El motor analítico proyecta los **4 vectores estratégicos principales** evaluando la concentración de ataques recientes, para modelar el escenario previsible en la Macrozona Sur a 30 días.")
+    
     if not df_filtrado.empty:
         if st.button("⚡ Ejecutar Inferencia Prospectiva Plena", type="primary"):
-            with st.spinner("Modelando 4 frentes de prospección..."):
-                st.info("📜 **Dictamen C5I**: Nivel de Riesgo Operativo Proyectado: `ALTO / FRICCIÓN SOSTENIDA`. El hostigamiento se centrará en anillos logísticos vulnerables. Se proyecta mantenimiento de línea base con posible incremento de hostigamiento simbólico.")
+            with st.spinner("Modelando frentes de prospección con IA..."):
+                
+                # Resumir la data real en pantalla para enviarla a Gemini
+                total_ataques = len(df_filtrado)
+                criticos = len(df_filtrado[df_filtrado['nivel_alerta'] == 'CRÍTICO'])
+                actores_detectados = df_filtrado['actor'].value_counts().head(3).to_dict()
+                tipologias = df_filtrado['tipologia_oficial'].value_counts().head(3).to_dict()
+                
+                contexto_prospectiva = f"""
+                DATOS DE LA VENTANA ACTUAL:
+                - Total Eventos: {total_ataques}
+                - Críticos para la forestal: {criticos}
+                - Orgánicas más activas: {actores_detectados}
+                - Tipologías más frecuentes: {tipologias}
+                """
+                
+                prompt_sistema = """Eres el analista jefe del C5I. Basándote ESTRICTAMENTE en los datos entregados, redacta un dictamen predictivo corto a 30 días.
+                Estructura exacta obligatoria:
+                ### 📜 Dictamen de Prospectiva C5I
+                **Nivel de Riesgo Operativo Proyectado:** [ALTO / MEDIO / BAJO] - [Breve justificación]
+                [Párrafo de 3 líneas prediciendo el comportamiento de los grupos en las próximas semanas]."""
+                
+                dictamen_ia = llamar_ia_gemini(prompt_sistema, contexto_prospectiva)
+                
+                st.info(dictamen_ia.get('response', 'Error al procesar el dictamen prospectivo.'))
                 st.divider()
+
                 cp1, cp2 = st.columns(2)
                 with cp1:
                     df_p = pd.DataFrame({'Fecha': pd.date_range(hoy, periods=30), 'Riesgo': np.clip(np.linspace(2,6,30)+np.random.normal(0,1.5,30),0,10)})
@@ -622,8 +646,10 @@ elif modo == "⚙️ Ingesta y Depuración":
                 col_canal = 'Service' if 'Service' in df_m.columns else 'catalizador' if 'catalizador' in df_m.columns else None
                 col_fecha = 'Start' if 'Start' in df_m.columns else 'fecha' if 'fecha' in df_m.columns else None
 
-                # Lógica robusta para identificar al Actor original
-                if 'Username Sender' in df_m.columns:
+                # Lógica robusta para identificar al Actor (buscando la traducción que hace Medusa)
+                if 'Nombre de usuario Sender' in df_m.columns:
+                    df_m['Actor_Extraido'] = df_m['Nombre de usuario Sender'].fillna(df_m.get('Nombre Sender', '')).replace('', 'Desconocido')
+                elif 'Username Sender' in df_m.columns:
                     df_m['Actor_Extraido'] = df_m['Username Sender'].fillna(df_m.get('Name Sender', '')).replace('', 'Desconocido')
                 elif 'actor' in df_m.columns:
                     df_m['Actor_Extraido'] = df_m['actor'].fillna('Desconocido')
