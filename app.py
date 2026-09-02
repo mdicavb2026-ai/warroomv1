@@ -189,9 +189,12 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         st.warning("⚠️ GEMINI_API_KEY no configurada. Usando análisis táctico base.")
         return {"response": "[ANALISIS] Se requiere clave Gemini activa. [DIRECTRICES]\n1. Monitoreo continuo.\n2. Actualizar perímetros.\n3. Coordinar con seguridad.\n4. Revisar convoyes."}
         
-    # FIX: Motor cambiado a la versión 3.7 que confirmaste que está activa en tu API
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
+    # Cambiado a 3.6-flash y clave protegida en los headers para que no se filtre en pantalla si hay error
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    }
     payload = {
         "system_instruction": {"parts": [{"text": prompt_sistema}]},
         "contents": [{"role": "user", "parts": [{"text": prompt_usuario}]}],
@@ -205,7 +208,7 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         texto_ia = re.sub(r'^```(?:json)?\s*|\s*```$', '', texto_ia, flags=re.MULTILINE).strip()
         return {"response": texto_ia}
     except Exception as e:
-        st.warning(f"⚠️ Error conectando con Gemini: {e}. Usando fallback táctico.")
+        st.warning(f"⚠️ Error conectando con Gemini ({e}). Usando fallback táctico.")
         return {"response": "[ANALISIS] IA indisponible. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
