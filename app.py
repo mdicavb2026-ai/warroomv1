@@ -196,10 +196,12 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         "generationConfig": {"temperature": 0.1}
     }
     
-    # 🚨 FIX: ESTRATEGIA DE EVASIÓN PARA SERVIDORES SATURADOS (503/404)
+    # 🚨 FIX: ESTRATEGIA DE EVASIÓN MULTI-MODELO PARA EVITAR EL ERROR 503/404 DE GOOGLE
     modelos_disponibles = [
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent"
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     ]
     
     for url in modelos_disponibles:
@@ -211,10 +213,10 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
                 texto_ia = re.sub(r'^```(?:json)?\s*|\s*```$', '', texto_ia, flags=re.MULTILINE).strip()
                 return {"response": texto_ia}
         except Exception:
-            continue  # Si falla, salta al siguiente modelo
+            continue  
             
-    st.warning("⚠️ Servidores de Gemini saturados (503/404). Usando fallback táctico para evitar caída del sistema.")
-    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
+    st.warning("⚠️ Servidores de Gemini completamente saturados (503/404). Usando fallback táctico para evitar caída del sistema.")
+    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
 # 3. PANEL LATERAL & FILTROS
@@ -364,8 +366,33 @@ elif modo == "🗺️ Visor GEOINT":
         cv = t1.toggle("🔴 Radar en Vivo (7 Días)", True)
         ch = t2.toggle("⏳ Histórico (KMZ)", False)
         cc = t3.toggle("🌲 Predios CMPC", True)
-        fm = go.Figure()
+        
         fl = datetime.now().date() - timedelta(days=7)
+        
+        # 🚨 FIX: Construcción DIRECTA de la estructura del Layout para burlar el error de la Nube de Streamlit
+        lat_centro, lon_centro = -38.73, -72.59
+        try:
+            if not dg.empty:
+                c_lat = dg['latitud_num'].mean()
+                c_lon = dg['longitud_num'].mean()
+                if not pd.isna(c_lat) and not pd.isna(c_lon):
+                    lat_centro = float(c_lat)
+                    lon_centro = float(c_lon)
+        except:
+            pass
+
+        layout_seguro = go.Layout(
+            mapbox=dict(
+                style="carto-darkmatter",
+                center=dict(lat=lat_centro, lon=lon_centro),
+                zoom=6
+            ),
+            margin=dict(r=0, t=0, l=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="white")
+        )
+        
+        fm = go.Figure(layout=layout_seguro)
         
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
@@ -404,28 +431,6 @@ elif modo == "🗺️ Visor GEOINT":
                     text=dp['nombre_predio'].tolist(),
                     name='Predios CMPC'
                 ))
-        
-        # 🚨 FIX: ACTUALIZACIÓN FINAL PARA EL MAPA (FORMATO PLANO)
-        # Se elimina el uso de dict() anidados en update_layout para evitar el ValueError de Plotly en la nube
-        lat_centro, lon_centro = -38.73, -72.59
-        try:
-            if not dg.empty:
-                c_lat = dg['latitud_num'].mean()
-                c_lon = dg['longitud_num'].mean()
-                if not pd.isna(c_lat) and not pd.isna(c_lon):
-                    lat_centro = float(c_lat)
-                    lon_centro = float(c_lon)
-        except:
-            pass
-
-        # Aplicación estricta de propiedades
-        fm.layout.mapbox.style = "carto-darkmatter"
-        fm.layout.mapbox.center.lat = lat_centro
-        fm.layout.mapbox.center.lon = lon_centro
-        fm.layout.mapbox.zoom = 6
-        fm.layout.margin = {"r":0, "t":0, "l":0, "b":0}
-        fm.layout.paper_bgcolor = "rgba(0,0,0,0)"
-        fm.layout.font.color = "white"
 
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
@@ -604,30 +609,34 @@ elif modo == "⚙️ Ingesta y Depuración":
     if archivo:
         with st.spinner("Procesando matriz de datos y aislando actores. Esto puede tomar unos segundos..."):
             try:
-                # Intento 1: Leer como archivo crudo de Medusa (separado por pipe |)
                 try:
-                    df_m = pd.read_csv(archivo, sep='|', on_bad_lines='skip', dtype=str)
+                    df_m = pd.read_csv(archivo, sep='|', engine='python', on_bad_lines='skip', dtype=str)
                 except:
-                    # Intento 2: Si el archivo fue guardado en Excel, se lee por comas (,)
                     archivo.seek(0)
-                    df_m = pd.read_csv(archivo, sep=',', on_bad_lines='skip', dtype=str)
+                    df_m = pd.read_csv(archivo, sep=',', engine='python', on_bad_lines='skip', dtype=str)
                 
-                # Limpiar nombres de columnas rebeldes
                 df_m.columns = df_m.columns.str.strip().str.replace('\ufeff', '')
                 
-                # Rescatar las columnas vengan como vengan
                 col_texto = 'Text' if 'Text' in df_m.columns else 'titular' if 'titular' in df_m.columns else None
                 col_titulo = 'Title' if 'Title' in df_m.columns else 'titular' if 'titular' in df_m.columns else None
-                col_actor = 'Username Sender' if 'Username Sender' in df_m.columns else 'actor' if 'actor' in df_m.columns else None
                 col_canal = 'Service' if 'Service' in df_m.columns else 'catalizador' if 'catalizador' in df_m.columns else None
                 col_fecha = 'Start' if 'Start' in df_m.columns else 'fecha' if 'fecha' in df_m.columns else None
+
+                # Lógica robusta para identificar al Actor original
+                if 'Username Sender' in df_m.columns:
+                    df_m['Actor_Extraido'] = df_m['Username Sender'].fillna(df_m.get('Name Sender', '')).replace('', 'Desconocido')
+                elif 'actor' in df_m.columns:
+                    df_m['Actor_Extraido'] = df_m['actor'].fillna('Desconocido')
+                else:
+                    df_m['Actor_Extraido'] = 'Desconocido'
+                    
+                df_m['Actor_Extraido'] = df_m['Actor_Extraido'].replace('nan', 'Desconocido').fillna('Desconocido')
 
                 if col_texto is None:
                     st.error("No se encontró una columna de texto válida en el archivo.")
                 else:
                     df_m[col_texto] = df_m[col_texto].fillna('')
                     df_m[col_titulo] = df_m[col_titulo].fillna('') if col_titulo else ''
-                    df_m['Actor_Extraido'] = df_m[col_actor].fillna('Desconocido') if col_actor else 'Desconocido'
                     
                     keywords = r"mapuche|cam|wam|rml|rmm|ataque|incendio|usurpación|robo de madera|corte de ruta|balazos|encapuchados|cmpc|mininco|forestal|predio|reivindica|sabotaje"
                     mask = df_m[col_texto].str.contains(keywords, case=False, regex=True)
@@ -646,7 +655,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                         else:
                             df_out['fecha'] = "Sin fecha"
 
-                        # Formatear el titular
                         if col_titulo and col_texto and col_titulo != col_texto:
                             df_out['titular'] = df_filtrado_csv.apply(lambda x: x[col_titulo] if len(str(x[col_titulo])) > 5 else str(x[col_texto])[:180] + "...", axis=1)
                         else:
@@ -658,7 +666,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                         st.markdown("### 🔍 Mapeo de Actores y Amplificación")
                         st.write("Identificación de usuarios que repiten el mismo patrón o campaña de ataque en el set de datos:")
                         
-                        # Agrupar por actor para ver quiénes son los principales difusores (Nodos Amplificadores)
                         df_actores = df_out['actor'].value_counts().reset_index()
                         df_actores.columns = ['Actor (Usuario)', 'Cantidad de Mensajes']
                         st.dataframe(df_actores, use_container_width=True)
