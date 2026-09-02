@@ -80,17 +80,6 @@ NODOS_MEDIOS = ["mapuexpress", "radiokurruf", "mapuchediario", "radionewen", "el
 # ==============================================================================
 # 2. FUNCIONES AUXILIARES & CARGA DE DATOS
 # ==============================================================================
-def extraer_imagen_real_rss(url):
-    if pd.isna(url) or not isinstance(url, str) or not url.startswith("http"): return ""
-    try:
-        h = {'User-Agent': 'Mozilla/5.0'}
-        r = requests.get(url, headers=h, timeout=5, allow_redirects=True)
-        soup = BeautifulSoup(r.content, 'html.parser')
-        og = soup.find('meta', property='og:image')
-        if og and og.get('content'): return og['content']
-        return ""
-    except: return ""
-
 def inyectar_evidencia_b64(ruta_local, url_web):
     r_local = str(ruta_local).strip() if ruta_local else ""
     u_web = str(url_web).strip() if url_web else ""
@@ -215,7 +204,7 @@ def llamar_ia_gemini(prompt_sistema, prompt_usuario):
         except Exception:
             continue  
             
-    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google."}
+    return {"response": "[ANALISIS] IA temporalmente indisponible por saturación de red en Google. [DIRECTRICES]\n1. Mantener monitoreo.\n2. Actualizar perímetros.\n3. Seguridad activa."}
 
 # ==============================================================================
 # 3. PANEL LATERAL & FILTROS
@@ -309,7 +298,6 @@ if modo == "📍 SITREP Táctico":
             st.plotly_chart(px.pie(df_filtrado, names='nivel_alerta', color='nivel_alerta', color_discrete_map={'CRÍTICO':'#ff4b4b','ALTO':'#f6a821','MEDIO':'#eab308','BAJO':'#38bdf8'}, hole=0.4), use_container_width=True)
             st.plotly_chart(px.bar(df_filtrado['tipologia_oficial'].value_counts().reset_index(), x='count', y='tipologia_oficial', orientation='h', color='count', color_continuous_scale='Reds'), use_container_width=True)
 
-# 🚨 FIX: Replicación del Informe Semanal SOCMINT
 elif modo == "📊 Reporte SOCMINT (Redes Sociales)":
     st.subheader("📊 Métricas Consolidadas de Inteligencia Territorial")
     st.markdown("Réplica operativa de la matriz de análisis del Informe Semanal corporativo.")
@@ -360,7 +348,6 @@ elif modo == "📊 Reporte SOCMINT (Redes Sociales)":
             else: st.info("No hay actores identificados en la muestra.")
     else: st.warning("No hay datos en este rango temporal.")
 
-# 🚨 FIX: MAPA CON PYDECK (A prueba de fallos de Plotly en la Nube)
 elif modo == "🗺️ Visor GEOINT":
     st.subheader("🗺️ Inteligencia Geoespacial Dinámica (Motor PyDeck)")
     if not df_filtrado.empty:
@@ -374,7 +361,6 @@ elif modo == "🗺️ Visor GEOINT":
         
         layers = []
         
-        # Mapeo de colores para PyDeck [R, G, B, Alpha]
         color_map = {
             'CRÍTICO': [255, 75, 75, 200],
             'ALTO': [246, 168, 33, 200],
@@ -433,7 +419,6 @@ elif modo == "🗺️ Visor GEOINT":
 
         view_state = pdk.ViewState(latitude=lat_centro, longitude=lon_centro, zoom=6, pitch=0)
         
-        # Renderizado nativo Streamlit (Imposible que crashee por culpa de Plotly)
         st.pydeck_chart(pdk.Deck(
             map_style='mapbox://styles/mapbox/dark-v10',
             initial_view_state=view_state,
@@ -501,7 +486,6 @@ elif modo == "🕸️ Análisis de Redes (SNA)":
             with open("sna_tmp.html", 'r', encoding='utf-8') as f: components.html(f.read(), height=680)
         else: st.info("Pares relacionales insuficientes.")
 
-# 🚨 FIX: PROSPECTIVA IA DINÁMICA
 elif modo == "🔮 Prospectiva IA":
     st.subheader("🔮 Prospectiva IA y Simulación Operativa")
     st.markdown("El motor algorítmico evalúa la matriz de incidentes reales en pantalla para modelar con IA el escenario previsible en la Macrozona Sur.")
@@ -574,7 +558,6 @@ elif modo == "📄 Reportes Radar":
     if st.button("🚀 Compilar Informe Oficial", width="stretch", type="primary"):
         with st.spinner("Generando informe consolidado..."):
             try:
-                # El reporte funciona igual, truncamos los datos para evitar el 503
                 te = len(df_filtrado)
                 ce = len(df_filtrado[df_filtrado['nivel_alerta']=='CRÍTICO']) if te>0 and 'nivel_alerta' in df_filtrado.columns else 0
                 rp = f"Total: {te} | Críticos: {ce}. Tipologías: {df_filtrado['tipologia_oficial'].value_counts().head(2).to_dict()}"[:1000]
@@ -600,7 +583,6 @@ elif modo == "📄 Reportes Radar":
                 st.download_button(label="📥 Descargar Documento Oficial (.docx)", data=buffer, file_name=f"Radar_CMPC_{datetime.now().strftime('%Y%m%d')}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
             except Exception as e: st.error(f"Error al compilar: {e}")
 
-# 🚨 FIX: DEPURACIÓN CON REPARACIÓN DE FECHAS Y FUSIÓN DE ACTORES POR IA
 elif modo == "⚙️ Ingesta y Depuración":
     st.title("⚙️ Motor de Depuración y Filtrado Medusa")
     st.info("Sube el archivo de Medusa. El sistema limpiará fechas, purgará ruido y podrá fusionar actores duplicados (Ej: elclxbdezorrxs -> clxbdezorrxs) usando IA.")
@@ -634,7 +616,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                     if not df_filtrado_csv.empty:
                         df_out = pd.DataFrame()
                         
-                        # FIX DE FECHAS: dayfirst=True asegura que 02/09/2026 no colapse a NaT
                         if col_fecha:
                             fechas_dt = pd.to_datetime(df_filtrado_csv[col_fecha], errors='coerce', dayfirst=True)
                             df_out['fecha'] = fechas_dt.dt.strftime('%Y-%m-%d %H:%M:%S').fillna("Sin fecha")
@@ -646,7 +627,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                         df_out['actor'] = df_filtrado_csv['Actor_Extraido'].replace('', 'Desconocido')
                         if col_url: df_out['enlace_noticia'] = df_filtrado_csv[col_url].fillna('')
                         
-                        # --- AGRUPACIÓN E INTELIGENCIA DE ACTORES ---
                         st.markdown("### 🔍 Mapeo de Actores y Amplificación")
                         df_actores = df_out['actor'].value_counts().reset_index()
                         df_actores.columns = ['Actor Original', 'Mensajes']
@@ -658,7 +638,7 @@ elif modo == "⚙️ Ingesta y Depuración":
                         with col_b:
                             if st.button("🤖 Unificar Identidades Duplicadas con IA", type="primary"):
                                 with st.spinner("Analizando similitud de nombres y plataformas..."):
-                                    lista_actores = df_actores['Actor Original'].tolist()[:30] # Top 30 para no saturar
+                                    lista_actores = df_actores['Actor Original'].tolist()[:30] 
                                     prompt = f"""Analiza esta lista de nombres de usuario. Agrupa los que claramente sean la misma persona/entidad operando con leves variaciones (ej: 'elclxbdezorrxs' y 'clxbdezorrxs', o 'peleacomoluisatoledo2' y 'peleacomoluisatoledo').
                                     Lista: {lista_actores}
                                     Devuelve SOLO un JSON así:
@@ -691,7 +671,6 @@ elif modo == "⚙️ Ingesta y Depuración":
         
         if st.button("🧹 Iniciar Sanitización Masiva", type="primary", use_container_width=True):
             with st.spinner("Descargando bóveda y ejecutando algoritmos de limpieza... (Esto puede tardar un par de minutos)"):
-                # 1. Descargar toda la base
                 datos_totales = []
                 chunk_size = 1000
                 offset = 0
@@ -717,7 +696,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                     analisis = str(fila.get('analisis_ia', '')).lower()
                     texto_completo = titular + " " + analisis
                     
-                    # FASE 1: Detección de Ruido
                     es_basura = False
                     if not fila.get('titular') or str(fila['titular']).strip() in ['nan', 'None', '']:
                         es_basura = True
@@ -734,7 +712,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                         except: pass
                         continue
 
-                    # FASE 2: Rescate y Estandarización
                     cambios = {}
                     actor_actual = str(fila.get('actor', '')).strip().lower()
                     
@@ -767,7 +744,6 @@ elif modo == "⚙️ Ingesta y Depuración":
                             actualizados += 1
                         except: pass
                         
-                    # Actualizar barra UI
                     if i % 100 == 0: barra_progreso.progress(min(i / total_filas, 1.0))
                 
                 barra_progreso.empty()
