@@ -362,7 +362,7 @@ elif modo == "🗺️ Visor GEOINT":
         fm = go.Figure()
         fl = datetime.now().date() - timedelta(days=7)
         
-        # FIX: Conversión estricta a listas (.tolist()) para evitar el crasheo de Plotly _plotly_utils
+        # Filtrado y trazado de capas (listas puras para evitar crasheos)
         if cv and not dg[dg['fecha_eval']>=fl].empty:
             dv = dg[dg['fecha_eval']>=fl].dropna(subset=['latitud_num', 'longitud_num'])
             if not dv.empty:
@@ -402,7 +402,28 @@ elif modo == "🗺️ Visor GEOINT":
                     name='Predios CMPC'
                 ))
         
-        fm.update_layout(mapbox_style="carto-darkmatter", mapbox=dict(center=dict(lat=dg['latitud_num'].mean() if not dg.empty else -38.73, lon=dg['longitud_num'].mean() if not dg.empty else -72.59), zoom=6), margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', font_color="white")
+        # --- FIX: Cálculo blindado del centro del mapa ---
+        try:
+            if not dg.empty:
+                lat_centro = float(dg['latitud_num'].mean())
+                lon_centro = float(dg['longitud_num'].mean())
+                if pd.isna(lat_centro) or pd.isna(lon_centro):
+                    lat_centro, lon_centro = -38.73, -72.59
+            else:
+                lat_centro, lon_centro = -38.73, -72.59
+        except:
+            lat_centro, lon_centro = -38.73, -72.59
+
+        fm.update_layout(
+            mapbox_style="carto-darkmatter", 
+            mapbox=dict(
+                center=dict(lat=lat_centro, lon=lon_centro), 
+                zoom=6
+            ), 
+            margin=dict(l=0,r=0,t=0,b=0), 
+            paper_bgcolor='rgba(0,0,0,0)', 
+            font_color="white"
+        )
         st.plotly_chart(fm, use_container_width=True, height=750, config={'scrollZoom':True})
 
 elif modo == "📱 Pulso RRSS e Instagram":
