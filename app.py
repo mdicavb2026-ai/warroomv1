@@ -681,3 +681,97 @@ elif modo == "⚙️ Ingesta y Depuración":
                         
             except Exception as e:
                 st.error(f"Error procesando la matriz de Medusa: {e}")
+
+        # -------------------------------------------------------------------
+        # 🚨 CABALLO DE TROYA: SANITIZADOR DE BÓVEDA (USO ÚNICO)
+        # -------------------------------------------------------------------
+        st.divider()
+        st.markdown("### 🚨 OPERACIÓN ESCOBA (Mantenimiento de Bóveda)")
+        st.error("⚠️ **ADVERTENCIA:** Este botón es de un solo uso. Limpiará el ruido histórico y reparará los campos nulos directamente en Supabase.")
+        
+        if st.button("🧹 Iniciar Sanitización Masiva", type="primary", use_container_width=True):
+            with st.spinner("Descargando bóveda y ejecutando algoritmos de limpieza... (Esto puede tardar un par de minutos)"):
+                # 1. Descargar toda la base
+                datos_totales = []
+                chunk_size = 1000
+                offset = 0
+                while True:
+                    res = supabase.table("inteligencia_tactica").select("*").range(offset, offset + chunk_size - 1).execute()
+                    if not res.data: break
+                    datos_totales.extend(res.data)
+                    if len(res.data) < chunk_size: break
+                    offset += chunk_size
+                
+                ruido_palabras = ["cuba", "chernobil", "irán", "polonia", "rusia", "ucrania", "españa", "sabadell", "bolivia", "colombia", "gaza", "maratón", "básquet", "fútbol", "itaú", "farándula", "romance", "salud mental", "créditos", "ballet", "danza", "netflix", "aeropuerto", "exhibicionismo", "lenteja", "salmón", "biocultural", "platería", "artesanía", "teatro", "concierto", "festival", "receta", "turismo", "poesía", "taller"]
+                alias_org = {"coordinadora arauco malleco": "CAM", "resistencia mapuche lafquenche": "RML", "resistencia mapuche lavkenche": "RML", "weichan auka mapu": "WAM"}
+                
+                eliminados = 0
+                actualizados = 0
+                
+                barra_progreso = st.progress(0)
+                total_filas = len(datos_totales)
+
+                for i, fila in enumerate(datos_totales):
+                    id_fila = fila['id']
+                    titular = str(fila.get('titular', '')).lower()
+                    analisis = str(fila.get('analisis_ia', '')).lower()
+                    texto_completo = titular + " " + analisis
+                    
+                    # FASE 1: Detección de Ruido
+                    es_basura = False
+                    if not fila.get('titular') or str(fila['titular']).strip() in ['nan', 'None', '']:
+                        es_basura = True
+                    if not es_basura:
+                        for ruido in ruido_palabras:
+                            if re.search(r'\b' + re.escape(ruido) + r'\b', titular):
+                                es_basura = True
+                                break
+                    
+                    if es_basura:
+                        try:
+                            supabase.table("inteligencia_tactica").delete().eq("id", id_fila).execute()
+                            eliminados += 1
+                        except: pass
+                        continue
+
+                    # FASE 2: Rescate y Estandarización
+                    cambios = {}
+                    actor_actual = str(fila.get('actor', '')).strip().lower()
+                    
+                    if actor_actual in ['nan', 'none', '', 'null', 'desconocido', 'no especificado', 'sin dato']:
+                        actor_rescatado = "Desconocido"
+                        for clave, valor in alias_org.items():
+                            if clave in texto_completo: actor_rescatado = valor; break
+                        if actor_rescatado == "Desconocido":
+                            if re.search(r'\bcam\b', texto_completo): actor_rescatado = "CAM"
+                            elif re.search(r'\bwam\b', texto_completo): actor_rescatado = "WAM"
+                            elif re.search(r'\brml\b', texto_completo): actor_rescatado = "RML"
+                        
+                        if actor_rescatado != fila.get('actor'):
+                            cambios['actor'] = actor_rescatado
+
+                    if not fila.get('url_foto') or str(fila['url_foto']).lower() == 'nan': cambios['url_foto'] = ""
+                    if not fila.get('ruta_evidencia_local') or str(fila['ruta_evidencia_local']).lower() == 'nan': cambios['ruta_evidencia_local'] = ""
+                    if not fila.get('analisis_ia') or str(fila['analisis_ia']).lower() in ['nan', 'none', '']: cambios['analisis_ia'] = "Análisis IA no disponible."
+                    if not fila.get('palabra_clave') or str(fila['palabra_clave']).lower() in ['nan', 'none', '']: cambios['palabra_clave'] = "Registro Histórico"
+                    if not fila.get('tipologia_oficial') or str(fila['tipologia_oficial']).lower() in ['nan', 'none', '']: cambios['tipologia_oficial'] = "Sabotaje / Otros"
+
+                    try: float(fila.get('latitud', -38.73))
+                    except: cambios['latitud'] = "-38.73"
+                    try: float(fila.get('longitud', -72.59))
+                    except: cambios['longitud'] = "-72.59"
+
+                    if cambios:
+                        try:
+                            supabase.table("inteligencia_tactica").update(cambios).eq("id", id_fila).execute()
+                            actualizados += 1
+                        except: pass
+                        
+                    # Actualizar barra UI
+                    if i % 100 == 0: barra_progreso.progress(min(i / total_filas, 1.0))
+                
+                barra_progreso.empty()
+                st.success(f"✅ **OPERACIÓN COMPLETADA.** Se analizaron {total_filas} registros.")
+                st.info(f"🗑️ Registros eliminados (Ruido/Basura): **{eliminados}**")
+                st.info(f"🛠️ Registros reparados/estandarizados: **{actualizados}**")
+                st.write("👉 *Ya puedes borrar este bloque de código de tu app.py.*")
